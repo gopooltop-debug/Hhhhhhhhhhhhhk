@@ -315,8 +315,11 @@ class Subtitles(Element):
 class Versus(Element):
     """Сравнение в строку: «НАША  vs  КОНКУРЕНТ», половины разъезжаются от центра."""
 
-    def __init__(self, start, dur, left, right, y=1000):
+    def __init__(self, start, dur, left, right, y=1000, picks=None):
         self.start, self.dur, self.left, self.right, self.y = start, dur, left, right, y
+        # picks: [(абсолютный кадр, 'l' | 'r')] — тонкая линия-указатель под словом,
+        # переезжает от одной стороны к другой («какая из них лучше»)
+        self.picks = picks or []
         self.sfx = ("tick", 0)
 
     def draw(self, layer, f, ctx):
@@ -328,8 +331,25 @@ class Versus(Element):
         paste(layer, vs, W / 2, self.y - 4, alpha=ease_out(f / 8) * out, scale=0.8 + 0.2 * p)
         gap = 40 + 30 * p
         q = ease_out((f - 3) / 12)
-        paste(layer, l, W / 2 - vs.width / 2 - gap - l.width, self.y, alpha=q * out, anchor="l")
-        paste(layer, r, W / 2 + vs.width / 2 + gap, self.y, alpha=q * out, anchor="l")
+        lx = W / 2 - vs.width / 2 - gap - l.width
+        rx = W / 2 + vs.width / 2 + gap
+        paste(layer, l, lx, self.y, alpha=q * out, anchor="l")
+        paste(layer, r, rx, self.y, alpha=q * out, anchor="l")
+        if self.picks:
+            k = self.start + f
+            span = {"l": (lx, l.width), "r": (rx, r.width)}
+            x0, w0 = span[self.picks[0][1]]
+            for (pk, side) in self.picks[1:]:
+                if k < pk:
+                    break
+                p = ease_in_out((k - pk) / 8)
+                x1, w1 = span[side]
+                x0, w0 = x0 + (x1 - x0) * p, w0 + (w1 - w0) * p
+            a = ease_out((k - self.picks[0][0]) / 6) * out
+            if a > 0:
+                d = ImageDraw.Draw(layer)
+                yy = self.y + l.height / 2 + 12
+                d.rectangle([x0, yy, x0 + w0, yy + 2], fill=ACCENT + (int(255 * a),))
 
 
 class Checklist(Element):
