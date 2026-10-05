@@ -274,6 +274,10 @@ class Callout(Element):
         if t > 0:
             ti = text_image(self.title, "lora", 62, ACCENT)
             ci = text_image(self.caps, "inter500", 30, TEXT, spacing=5)
+            # подложка, чтобы подпись читалась на светлом фоне
+            bw = max(ti.width, ci.width) + 44
+            d.rounded_rectangle([lx - 22, ly - 46 + 10 * (1 - t), lx - 22 + bw, ly + 98 + 10 * (1 - t)],
+                                radius=20, fill=BLACK + (int(255 * 0.6 * t * out),))
             paste(layer, ti, lx, ly + 10 * (1 - t), alpha=t * out, anchor="l")
             paste(layer, ci, lx + 2, ly + 66 + 10 * (1 - t), alpha=t * out, anchor="l")
 
@@ -307,13 +311,134 @@ class Subtitles(Element):
                              1240 + img.height / 2 + 8], fill=BEIGE + (255,))
 
 
+class Versus(Element):
+    """Сравнение в строку: «НАША  vs  КОНКУРЕНТ», половины разъезжаются от центра."""
+
+    def __init__(self, start, dur, left, right, y=1000):
+        self.start, self.dur, self.left, self.right, self.y = start, dur, left, right, y
+        self.sfx = ("tick", 0)
+
+    def draw(self, layer, f, ctx):
+        out = self.out_alpha(f)
+        vs = text_image("vs", "lora", 64, ACCENT)
+        l = text_image(self.left, "inter600", 44, TEXT, spacing=5)
+        r = text_image(self.right, "inter600", 44, TEXT, spacing=5)
+        p = ease_out(f / 12)
+        paste(layer, vs, W / 2, self.y - 4, alpha=ease_out(f / 8) * out, scale=0.8 + 0.2 * p)
+        gap = 40 + 30 * p
+        q = ease_out((f - 3) / 12)
+        paste(layer, l, W / 2 - vs.width / 2 - gap - l.width, self.y, alpha=q * out, anchor="l")
+        paste(layer, r, W / 2 + vs.width / 2 + gap, self.y, alpha=q * out, anchor="l")
+
+
+class Checklist(Element):
+    """Карточка-чеклист: заголовок капсом и пункты, напротив которых рисуется ✕.
+    items: [(текст, кадр_появления, кадр_крестика)] в абсолютных кадрах ролика."""
+
+    def __init__(self, start, dur, header, items, x=90, y=250, width=380):
+        self.start, self.dur, self.header, self.items = start, dur, header, items
+        self.x, self.y, self.width = x, y, width
+        self.sfx = ("tick", 0)
+        self.shadow = False
+
+    def draw(self, layer, f, ctx):
+        k = self.start + f
+        out = self.out_alpha(f)
+        pad, row = 30, 64
+        head = text_image(self.header, "inter500", 26, TEXT, spacing=5)
+        # высота карточки плавно растёт по мере появления пунктов
+        n = 0.0
+        for (_, ap, _) in self.items:
+            n += ease_out((k - ap) / 8)
+        h = pad + 34 + 18 + n * row + pad - 14
+        reveal = ease_out(f / 12)
+        card = Image.new("RGBA", (self.width + 8, int(h) + 8), (0, 0, 0, 0))
+        d = ImageDraw.Draw(card)
+        cw = self.width * (0.85 + 0.15 * reveal)
+        d.rounded_rectangle([4, 4, 4 + cw, 4 + h], radius=22,
+                            fill=BLACK + (int(255 * 0.72 * reveal),))
+        ta = ease_out((f - 4) / 10)
+        paste(card, head, 4 + pad, 4 + pad + 14, alpha=ta * 0.85, anchor="l")
+        d.rectangle([4 + pad, 4 + pad + 40, 4 + pad + 60 * ta, 4 + pad + 41], fill=ACCENT + (int(255 * ta),))
+        yy = 4 + pad + 52
+        for (text, ap, mk) in self.items:
+            a = ease_out((k - ap) / 8)
+            if a <= 0:
+                continue
+            cy = yy + row / 2
+            t = text_image(text, "inter600", 40, TEXT)
+            paste(card, t, 4 + pad + 52 + 14 * (1 - a), cy, alpha=a, anchor="l")
+            # крестик: два штриха по очереди
+            m1 = ease_out((k - mk) / 5)
+            m2 = ease_out((k - mk - 4) / 5)
+            bx, by, sz = 4 + pad + 6, cy - 13, 26
+            col = ACCENT + (int(255 * a),)
+            if m1 > 0:
+                d.line([bx, by, bx + sz * m1, by + sz * m1], fill=col, width=4)
+            if m2 > 0:
+                d.line([bx + sz, by, bx + sz - sz * m2, by + sz * m2], fill=col, width=4)
+            if m1 <= 0:
+                d.ellipse([bx + sz / 2 - 4, cy - 4, bx + sz / 2 + 4, cy + 4], fill=BEIGE + (int(255 * a),))
+            yy += row * a
+        paste(layer, card, self.x - 4, self.y + card.height / 2, alpha=out * (0.4 + 0.6 * reveal), anchor="l")
+
+
+class ImpactBurst(Element):
+    """Удар: два кольца и короткие лучи из точки удара."""
+
+    def __init__(self, start, src_point, dur=18):
+        self.start, self.dur, self.src_point = start, dur, src_point
+        self.shadow = False
+
+    def draw(self, layer, f, ctx):
+        x, y = ctx["map"](self.src_point)
+        d = ImageDraw.Draw(layer)
+        for delay, r0, r1, wd in ((0, 20, 230, 4), (4, 12, 140, 3)):
+            g = f - delay
+            if g < 0:
+                continue
+            p = ease_out(g / (self.dur - delay))
+            r = r0 + (r1 - r0) * p
+            a = int(235 * (1 - p) ** 1.4)
+            d.ellipse([x - r, y - r, x + r, y + r], outline=TEXT + (a,), width=max(1, round(wd * (1 - 0.5 * p))))
+        p = ease_out(f / 10)
+        a = int(255 * clamp01(1 - f / 10))
+        if a > 0:
+            for i in range(8):
+                ang = i * math.pi / 4 + math.pi / 8
+                r0, r1 = 60 + 90 * p, 60 + 90 * p + 34 * (1 - p) + 6
+                d.line([x + r0 * math.cos(ang), y + r0 * math.sin(ang),
+                        x + r1 * math.cos(ang), y + r1 * math.sin(ang)], fill=TEXT + (a,), width=4)
+
+
+class DrawCircle(Element):
+    """Кольцо, которое прорисовывается вокруг точки (по трекингу)."""
+
+    def __init__(self, start, dur, track, radius=90):
+        self.start, self.dur, self.track, self.radius = start, dur, track, radius
+        self.sfx = ("tick", 0)
+
+    def draw(self, layer, f, ctx):
+        k = self.start + f
+        sp = self.track.get(k) or self.track[min(self.track, key=lambda q: abs(q - k))]
+        x, y = ctx["map"](sp)
+        r = self.radius * ctx["scale"]
+        p = ease_out(f / 14)
+        a = int(255 * self.out_alpha(f))
+        d = ImageDraw.Draw(layer)
+        if p > 0:
+            d.arc([x - r, y - r, x + r, y + r], -100, -100 + 360 * p, fill=TEXT + (a,), width=4)
+
+
 # ---------------------------------------------------------------- таймлайн
 
 class Segment:
     def __init__(self, src_in, src_out, zoom, center, trans_in="cut"):
         self.fin = round(src_in * FPS)
         self.fout = round(src_out * FPS)
-        self.zoom = zoom          # функция (кадр внутри отрезка, длина) -> (масштаб, dx, dy)
+        # zoom: функция (кадр внутри отрезка, длина) -> (масштаб, dx, dy)
+        #       или (масштаб, фокус, цель): точка-фокус исходника встаёт в точку-цель кадра
+        self.zoom = zoom
         self.center = center      # центр зума в координатах исходника
         self.trans_in = trans_in  # 'cut' | 'dissolve'
         self.out_start = 0
@@ -340,6 +465,37 @@ def src2out(segments, i, src_time):
 
 def slow_push(a, b):
     return lambda f, n: (a + (b - a) * ease_in_out(f / max(1, n - 1)), 0, 0)
+
+
+def keyframes(keys):
+    """keys: [(кадр, масштаб, фокус(x, y), тяга_к_центру 0..1, длина_перехода)].
+    Между ключами — ease-in-out за указанную длину, дальше значение держится."""
+    def at(f):
+        s, (fx, fy), pull = keys[0][1], keys[0][2], keys[0][3]
+        for (k, ks, kc, kp, ln) in keys[1:]:
+            if f < k:
+                break
+            p = ease_in_out((f - k) / max(1, ln))
+            s = s + (ks - s) * p
+            fx, fy = fx + (kc[0] - fx) * p, fy + (kc[1] - fy) * p
+            pull = pull + (kp - pull) * p
+        return s, (fx, fy), pull
+    return at
+
+
+def focus_zoom(scale_at, focus_at, extra=None):
+    """Собирает зум: масштаб и фокус по кадру, фокус тянется к центру кадра."""
+    def z(f, n):
+        s, foc, pull = scale_at(f)
+        if focus_at is not None:
+            foc = focus_at(f)
+        tx = foc[0] + (W / 2 - foc[0]) * pull
+        ty = foc[1] + (H / 2 - foc[1]) * pull
+        if extra:
+            dx, dy = extra(f)
+            tx, ty = tx + dx, ty + dy
+        return s, foc, (tx, ty)
+    return z
 
 
 # ---------------------------------------------------------------- звук
@@ -472,11 +628,15 @@ def vignette_mask():
     return m[..., None]
 
 
-def transform(img, scale, center, dx=0, dy=0):
-    cx, cy = center
-    M = np.float32([[scale, 0, cx - scale * cx + dx], [0, scale, cy - scale * cy + dy]])
+def transform(img, scale, focus, target):
+    """x' = scale * (x - focus) + target; сдвиг ограничен, чтобы кадр не открывал края."""
+    ox = target[0] - scale * focus[0]
+    oy = target[1] - scale * focus[1]
+    ox = min(0.0, max(W - scale * W, ox))
+    oy = min(0.0, max(H - scale * H, oy))
+    M = np.float32([[scale, 0, ox], [0, scale, oy]])
     out = cv2.warpAffine(img, M, (W, H), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
-    return out, (lambda p: (cx + (p[0] - cx) * scale + dx, cy + (p[1] - cy) * scale + dy))
+    return out, (lambda p: (p[0] * scale + ox, p[1] * scale + oy))
 
 
 def render(src, segments, elements, sfx_events, out_path, workdir, extras=None):
@@ -511,21 +671,26 @@ def render(src, segments, elements, sfx_events, out_path, workdir, extras=None):
             f = k - s.out_start
             if not (0 <= f < s.length):
                 continue
-            sc, dx, dy = s.zoom(f, s.length)
-            img, mp = transform(frames[s.fin + f], sc, s.center, dx, dy)
+            z = s.zoom(f, s.length)
+            if len(z) == 3 and not isinstance(z[1], tuple):
+                sc, dx, dy = z
+                foc, tgt = s.center, (s.center[0] + dx, s.center[1] + dy)
+            else:
+                sc, foc, tgt = z
+            img, mp = transform(frames[s.fin + f], sc, foc, tgt)
             if s.trans_in == "dissolve" and f < DISSOLVE and acc is not None:
                 w = (f + 1) / (DISSOLVE + 1)
                 acc = acc * (1 - w) + img.astype(np.float32) * w
             else:
                 acc = img.astype(np.float32)
-            ctx_map = mp  # графика привязана к входящему плану
+            ctx_map, ctx_scale = mp, sc  # графика привязана к входящему плану
         frame = acc * vmask
         frame += rng.integers(-3, 4, size=(H, W, 1)).astype(np.float32)
         frame = np.clip(frame, 0, 255).astype(np.uint8)
 
         act = [e for e in elements if e.active(k)]
         if act:
-            ctx = {"map": ctx_map}
+            ctx = {"map": ctx_map, "scale": ctx_scale}
             layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
             flat = Image.new("RGBA", (W, H), (0, 0, 0, 0))
             for e in act:
