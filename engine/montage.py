@@ -171,14 +171,15 @@ class Element:
 class Hook(Element):
     """Хук, п. 7: капс-строка, линия 140 px, курсивный акцент."""
 
-    def __init__(self, start, line1, line2, y=800, dur=75):
+    def __init__(self, start, line1, line2, y=800, dur=75, size2=104):
         self.start, self.dur, self.line1, self.line2, self.y = start, dur, line1, line2, y
+        self.size2 = size2
         self.sfx = ("tick", 0)
 
     def draw(self, layer, f, ctx):
         out = self.out_alpha(f)
         l1 = text_image(self.line1, "inter600", 54, TEXT, spacing=6)
-        l2 = text_image(self.line2, "lora", 104, ACCENT)
+        l2 = text_image(self.line2, "lora", self.size2, ACCENT)
         y1 = self.y - 70
         y2 = self.y + 62
         paste(layer, l1, W / 2, y1, alpha=ease_out((f - 1) / 9) * out)
