@@ -43,6 +43,9 @@ FONTS = {
     "inter500": ["inter-cyrillic-500-normal.ttf", "inter-latin-500-normal.ttf"],
     "inter600": ["inter-cyrillic-600-normal.ttf", "inter-latin-600-normal.ttf"],
     "lora": ["lora-cyrillic-600-italic.ttf", "lora-latin-600-italic.ttf"],
+    "mont600": ["montserrat-cyrillic-600-normal.ttf", "montserrat-latin-600-normal.ttf"],
+    "mont800": ["montserrat-cyrillic-800-normal.ttf", "montserrat-latin-800-normal.ttf"],
+    "mont900": ["montserrat-cyrillic-900-normal.ttf", "montserrat-latin-900-normal.ttf"],
 }
 
 
@@ -454,9 +457,11 @@ class DrawCircle(Element):
 # ---------------------------------------------------------------- таймлайн
 
 class Segment:
-    def __init__(self, src_in, src_out, zoom, center, trans_in="cut"):
+    def __init__(self, src_in, src_out, zoom, center, trans_in="cut", video_in=None):
         self.fin = round(src_in * FPS)
         self.fout = round(src_out * FPS)
+        # картинка может браться из другого места исходника, чем звук (перебивка)
+        self.vin = round(video_in * FPS) if video_in is not None else self.fin
         # zoom: функция (кадр внутри отрезка, длина) -> (масштаб, dx, dy)
         #       или (масштаб, фокус, цель): точка-фокус исходника встаёт в точку-цель кадра
         self.zoom = zoom
@@ -665,7 +670,7 @@ def render(src, segments, elements, sfx_events, out_path, workdir, extras=None):
     total = layout(segments)
     needed = set()
     for s in segments:
-        needed.update(range(s.fin, s.fout))
+        needed.update(range(s.vin, s.vin + s.length))
     print(f"[render] {total} кадров ({total / FPS:.2f} с), декодирование…", file=sys.stderr)
     frames = decode_graded(src, needed)
     vmask = vignette_mask()
@@ -698,7 +703,7 @@ def render(src, segments, elements, sfx_events, out_path, workdir, extras=None):
                 foc, tgt = s.center, (s.center[0] + dx, s.center[1] + dy)
             else:
                 sc, foc, tgt = z
-            img, mp = transform(frames[s.fin + f], sc, foc, tgt)
+            img, mp = transform(frames[s.vin + f], sc, foc, tgt)
             if s.trans_in == "dissolve" and f < DISSOLVE and acc is not None:
                 w = (f + 1) / (DISSOLVE + 1)
                 acc = acc * (1 - w) + img.astype(np.float32) * w
@@ -712,13 +717,16 @@ def render(src, segments, elements, sfx_events, out_path, workdir, extras=None):
         act = [e for e in elements if e.active(k)]
         if act:
             ctx = {"map": ctx_map, "scale": ctx_scale}
+            # элементы кладутся строго по порядку списка, у каждого своя тень
             layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-            flat = Image.new("RGBA", (W, H), (0, 0, 0, 0))
             for e in act:
-                e.draw(layer if e.shadow else flat, k - e.start, ctx)
-            if layer.getbbox():
-                layer = soft_shadow(layer)
-            layer.alpha_composite(flat)
+                sub = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+                e.draw(sub, k - e.start, ctx)
+                if not sub.getbbox():
+                    continue
+                if e.shadow:
+                    sub = soft_shadow(sub, **getattr(e, "shadow_kw", {}))
+                layer.alpha_composite(sub)
             g = np.asarray(layer).astype(np.float32)
             a = g[..., 3:4] / 255
             rgb = g[..., 2::-1]  # RGBA -> BGR

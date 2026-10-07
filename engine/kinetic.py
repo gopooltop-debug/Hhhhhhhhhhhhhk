@@ -1,0 +1,278 @@
+"""Стиль v2 («кинетика»): слова по центру с переворотом и размытием, линия под фразой,
+бордовая плашка под акцентом, цветные карточки, карточки-коллажи, шторки.
+
+Палитра: белый, чёрный, коричневый, бордовый. Шрифт: Montserrat 900/800.
+"""
+import math
+
+import cv2
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter
+
+import montage as m
+from montage import W, H, Element, clamp01, ease_out, ease_in_out, text_image
+
+WHITE = (0xF6, 0xF4, 0xF1)
+INK = (0x16, 0x15, 0x14)
+BROWN = (0x6B, 0x4F, 0x3A)
+BORDO = (0x75, 0x40, 0x43)
+LIGHT_GRAY = (0xE4, 0xE1, 0xDC)
+
+CENTER_Y = 1000  # центр текста: середина кадра, чуть ниже лица в говорящей голове
+MAX_W = 900
+
+
+# ---------------------------------------------------------------- геометрия
+
+def flip(img, angle, blur):
+    """Поворот RGBA-картинки вокруг горизонтальной оси (angle, рад) + вертикальное размытие."""
+    w, h = img.size
+    pad_x, pad_y = int(w * 0.25), int(h * 0.9)
+    cw, ch = w + 2 * pad_x, h + 2 * pad_y
+    f = 1400.0
+    src = np.float32([[0, 0], [w, 0], [w, h], [0, h]])
+    dst = []
+    for (x, y) in src:
+        X, Y = x - w / 2, y - h / 2
+        y3, z3 = Y * math.cos(angle), Y * math.sin(angle)
+        k = f / (f + z3)
+        dst.append([cw / 2 + X * k, ch / 2 + y3 * k])
+    M = cv2.getPerspectiveTransform(src, np.float32(dst))
+    arr = np.asarray(img)
+    # premultiplied alpha, чтобы размытие не давало тёмных ореолов
+    a = arr[..., 3:4].astype(np.float32) / 255
+    pm = np.concatenate([arr[..., :3] * a, a * 255], axis=2).astype(np.float32)
+    out = cv2.warpPerspective(pm, M, (cw, ch), flags=cv2.INTER_LINEAR, borderValue=0)
+    b = int(round(blur))
+    if b >= 2:
+        out = cv2.blur(out, (max(1, b // 3), b))
+    alpha = out[..., 3:4]
+    rgb = np.where(alpha > 0, out[..., :3] / np.maximum(alpha / 255, 1e-3), 0)
+    res = np.concatenate([np.clip(rgb, 0, 255), np.clip(alpha, 0, 255)], axis=2).astype(np.uint8)
+    return Image.fromarray(res, "RGBA")
+
+
+def paste_center(layer, img, cx, cy, alpha=1.0):
+    if alpha <= 0:
+        return
+    if alpha < 1:
+        a = np.asarray(img.getchannel("A"), np.float32) * alpha
+        img = img.copy()
+        img.putalpha(Image.fromarray(a.astype(np.uint8)))
+    x, y = int(round(cx - img.width / 2)), int(round(cy - img.height / 2))
+    layer.alpha_composite(img, (max(0, x), max(0, y)), (max(0, -x), max(0, -y)))
+
+
+# ---------------------------------------------------------------- слова по центру
+
+SHORT = {"и", "а", "в", "во", "с", "со", "к", "ко", "у", "о", "об", "из", "на", "не", "ни",
+         "мы", "мне", "же", "ли", "бы", "то", "по", "за", "от", "до", "что", "как"}
+
+
+def split_group(text):
+    """«и посмотрим» → ('и', 'посмотрим'): короткие слова в начале идут маленькой приставкой."""
+    words = text.split()
+    pre = []
+    while len(words) > 1 and words[0] in SHORT:
+        pre.append(words.pop(0))
+    return " ".join(pre), " ".join(words)
+
+
+class KineticWords(Element):
+    """Субтитры по центру: группа влетает снизу с переворотом и размытием (6 кадров),
+    уходит вверх (4 кадра). Приставка — мелко над главным словом. Под фразой тонкая линия.
+
+    groups: [(кадр_начала, кадр_конца, текст, акцент)] — кадры ролика.
+    light: [(с, по)] — кадры, где под текстом светлая карточка (текст тёмный).
+    """
+    shadow_kw = {"radius": 14, "opacity": 0.5}
+
+    def __init__(self, groups, light=(), size=128, y=CENTER_Y, light_y=1230):
+        self.groups = sorted(groups)
+        self.light = list(light)
+        self.size, self.base_y, self.light_y = size, y, light_y
+        self.start = self.groups[0][0]
+        self.dur = self.groups[-1][1] + 6 - self.start
+        # фразы для линии: группы, идущие подряд без паузы
+        self.phrases = []
+        for g in self.groups:
+            if self.phrases and g[0] - self.phrases[-1][1] <= 3:
+                self.phrases[-1][1] = g[1]
+            else:
+                self.phrases.append([g[0], g[1]])
+
+    def _is_light(self, k):
+        return any(a <= k < b for a, b in self.light)
+
+    def _block(self, text, accent, color, wipe):
+        pre, main = split_group(text)
+        mi = text_image(main.upper(), "mont900", self.size, color, spacing=-2)
+        if mi.width > MAX_W:
+            mi = mi.resize((MAX_W, int(mi.height * MAX_W / mi.width)), Image.LANCZOS)
+        pi = text_image(pre.upper(), "mont800", int(self.size * 0.36), color, spacing=3) if pre else None
+        padx, pady = 26, 12
+        bw = mi.width + 2 * padx
+        bh = mi.height + 2 * pady + (pi.height + 4 if pi else 0)
+        blk = Image.new("RGBA", (bw, bh), (0, 0, 0, 0))
+        top = 0
+        if pi:
+            blk.alpha_composite(pi, ((bw - pi.width) // 2, 0))
+            top = pi.height + 4
+        if accent and wipe > 0:
+            d = ImageDraw.Draw(blk)
+            d.rectangle([0, top, bw * wipe, top + mi.height + 2 * pady], fill=BORDO + (255,))
+        blk.alpha_composite(mi, (padx, top + pady))
+        return blk, top + pady + mi.height / 2  # центр главного слова внутри блока
+
+    def draw(self, layer, f, ctx):
+        k = self.start + f
+        light = self._is_light(k)
+        color = INK if light else (255, 255, 255)
+        line_y = None
+        for i, (a, b, text, accent) in enumerate(self.groups):
+            if not (a - 0 <= k < b + 6):
+                continue
+            g = k - a
+            nxt = self.groups[i + 1][0] if i + 1 < len(self.groups) else None
+            cont = nxt is not None and nxt - b <= 3  # следующее слово сразу — уходим вверх
+            if k < b:
+                p = ease_out(g / 6)
+                ang, dy, blur, al = (1 - p) * 1.25, (1 - p) * 60, (1 - p) * 26, clamp01(g / 3 + 0.2)
+            else:
+                q = (k - b) / (4 if cont else 6)
+                if q >= 1:
+                    continue
+                qe = ease_in_out(q)
+                if cont:
+                    ang, dy, blur, al = -qe * 1.25, -qe * 60, qe * 26, 1 - qe
+                else:
+                    ang, dy, blur, al = 0, -qe * 20, qe * 18, 1 - qe
+            # позиция выбирается на старте группы и не прыгает, пока слово на экране
+            self.y = self.light_y if self._is_light(a) else self.base_y
+            if k < b:
+                line_y = self.y  # линия — под тем словом, что сейчас на экране
+            wipe = ease_out((g - 2) / 6) if accent else 0
+            blk, main_cy = self._block(text, accent, (255, 255, 255) if accent else color, wipe)
+            img = flip(blk, ang, blur) if (abs(ang) > 0.01 or blur > 1) else blk
+            # центр главного слова держим на self.y
+            off = main_cy - blk.height / 2
+            paste_center(layer, img, W / 2, self.y - off + dy, al)
+        # линия под фразой
+        for (pa, pb) in self.phrases:
+            if not (pa <= k < pb + 6):
+                continue
+            grow = ease_out((k - pa) / 8)
+            shrink = 1 - ease_in_out((k - pb) / 6) if k >= pb else 1
+            lw = 520 * grow * shrink
+            self.y = line_y if line_y is not None else (
+                self.light_y if self._is_light(pa) else self.base_y)
+            if lw > 2:
+                d = ImageDraw.Draw(layer)
+                yy = self.y + self.size * 0.62
+                col = (INK if light else (255, 255, 255)) + (int(230 * shrink),)
+                d.rectangle([W / 2 - lw / 2, yy, W / 2 + lw / 2, yy + 3], fill=col)
+
+
+# ---------------------------------------------------------------- карточки
+
+def light_band(img, angle_deg=-32, strength=0.10, seed=0):
+    """Мягкая диагональная полоса света/тени на светлом фоне, как в референсе."""
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    a = math.radians(angle_deg)
+    d = xx * math.cos(a) + yy * math.sin(a)
+    band = np.exp(-((d - W * 0.15) / 260) ** 2) - 0.6 * np.exp(-((d + W * 0.35) / 180) ** 2)
+    arr = np.asarray(img, np.float32)
+    arr[..., :3] *= (1 + strength * band[..., None])
+    return Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), img.mode)
+
+
+class ColorCard(Element):
+    """Полноэкранная цветная карточка (как «ignored» в референсе), въезжает шторкой снизу."""
+
+    def __init__(self, start, dur, color=BORDO, enter=5, exit_=5):
+        self.start, self.dur, self.color = start, dur, color
+        self.enter, self.exit = enter, exit_
+        self.shadow = False
+        self.sfx = ("whoosh", 0)
+
+    def draw(self, layer, f, ctx):
+        p = ease_out(f / self.enter)
+        q = ease_in_out((f - (self.dur - self.exit)) / self.exit)
+        top = H * (1 - p) - H * q  # въезд снизу, выезд вверх
+        d = ImageDraw.Draw(layer)
+        d.rectangle([0, top, W, top + H], fill=self.color + (255,))
+
+
+class CollageCard(Element):
+    """Светлая карточка-коллаж: цветной круг, ч/б вырезка поверх (выходит за круг сверху)."""
+
+    def __init__(self, start, dur, cut, circle=BORDO, circle_r=310, cy=760, cut_h=860,
+                 cut_dx=0, enter=7, exit_=5):
+        self.start, self.dur, self.cut = start, dur, cut
+        self.circle, self.r, self.cy, self.cut_h, self.cut_dx = circle, circle_r, cy, cut_h, cut_dx
+        self.enter, self.exit = enter, exit_
+        self.shadow = False
+        self.sfx = ("whoosh", 0)
+        bg = Image.new("RGBA", (W, H), WHITE + (255,))
+        self.bg = light_band(bg)
+        s = cut_h / cut.height
+        self.cut_img = cut.resize((int(cut.width * s), cut_h), Image.LANCZOS)
+
+    def draw(self, layer, f, ctx):
+        p = ease_out(f / self.enter)
+        q = ease_in_out((f - (self.dur - self.exit)) / self.exit)
+        card = self.bg.copy()
+        d = ImageDraw.Draw(card)
+        # круг с лёгким «перелётом» масштаба
+        c = ease_out((f - 1) / 9)
+        r = self.r * (c + 0.08 * math.sin(math.pi * c) if c < 1 else 1)
+        if r > 1:
+            d.ellipse([W / 2 - r, self.cy - r, W / 2 + r, self.cy + r], fill=self.circle + (255,))
+        t = ease_out((f - 3) / 9)
+        if t > 0:
+            ci = self.cut_img
+            x = int(W / 2 - ci.width / 2 + self.cut_dx)
+            y = int(self.cy + self.r - ci.height + 40 * (1 - t))
+            a = np.asarray(ci.getchannel("A"), np.float32) * t
+            ci2 = ci.copy()
+            ci2.putalpha(Image.fromarray(a.astype(np.uint8)))
+            card.alpha_composite(ci2, (max(0, x), max(0, y)), (max(0, -x), max(0, -y)))
+        # въезд: шторка слева направо; выезд: уезжает влево
+        x0 = int(-W * (1 - p) - W * q)
+        layer.alpha_composite(card, (max(0, x0), 0), (max(0, -x0), 0))
+
+
+class WipeBar(Element):
+    """Шторка-переход: цветная полоса проходит через кадр, склейка — под ней (в середине)."""
+
+    def __init__(self, cut_frame, color=BORDO, dur=10):
+        self.start, self.dur, self.color = cut_frame - dur // 2, dur, color
+        self.shadow = False
+        self.sfx = ("whoosh", 0)
+
+    def draw(self, layer, f, ctx):
+        p = ease_in_out(f / (self.dur - 1))
+        bw = W * 1.1
+        x0 = -bw + (W + bw) * p
+        d = ImageDraw.Draw(layer)
+        d.rectangle([x0, 0, x0 + bw, H], fill=self.color + (255,))
+
+
+# ---------------------------------------------------------------- звуки
+
+def tone_whoosh(seed=5):
+    rng = np.random.default_rng(seed)
+    n = int(0.32 * m.SR)
+    x = rng.standard_normal(n)
+    t = np.arange(n) / n
+    # нарастающий и уходящий шум с плавающей «полосой»
+    out = np.zeros(n)
+    acc = 0.0
+    alpha = 0.02 + 0.25 * t ** 1.5
+    for i in range(n):
+        acc += alpha[i] * (x[i] - acc)
+        out[i] = acc
+    return out * np.sin(np.pi * t) ** 1.5
+
+
+m.SFX["whoosh"] = lambda: m.norm_peak(tone_whoosh(), -24)
