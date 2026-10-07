@@ -1,0 +1,171 @@
+"""Ролик «картхолдер: новый и год носки» — стиль v2, вставки только чёрные и белые.
+
+Запуск: python3 projects/2026-10-07_cardholder.py папка_с_рабочими_копиями [папка_вывода]
+Рабочие копии: IMG_0486.mp4 (вы в кадре), IMG_0494.mp4 (руки + картхолдеры) —
+SDR 1080×1920 30 к/с из исходников MOV (HLG HDR, 4K 60).
+
+Структура:
+  1. Вы в кадре: «Один из них новый, а вторым я пользуюсь уже больше года» (последний дубль, 40,4 с).
+  2. Закадровый голос (дубль 87,9–101,6 с) поверх рук с картхолдерами (IMG_0494).
+  3. Снова вы: «Новый — это просто новый, а этот уже мой» (последний дубль, 130,3 с).
+"""
+import json
+import os
+import subprocess
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.join(HERE, "..", "engine"))
+import montage as m  # noqa: E402
+import kinetic as kn  # noqa: E402
+import cutout as co  # noqa: E402
+import placement as pl  # noqa: E402
+from PIL import Image  # noqa: E402
+
+SRC_DIR = sys.argv[1] if len(sys.argv) > 1 else "."
+OUT_DIR = sys.argv[2] if len(sys.argv) > 2 else "output"
+TALK = os.path.join(SRC_DIR, "IMG_0486.mp4")
+HANDS = os.path.join(SRC_DIR, "IMG_0494.mp4")
+NAME = "2026-10-07_картхолдер_v1"
+FPS = m.FPS
+
+W = json.load(open(os.path.join(HERE, "cardholder.words.json"), encoding="utf-8"))
+W["final"]["words"][0]["start"] = 130.28   # распознавание поставило начало дубля, речь с 130,28
+
+
+def wd(take, word, nth=0):
+    hits = [w for w in W[take]["words"] if w["word"].strip(",.!?").lower() == word]
+    return hits[nth]
+
+
+ACCENT = {"больше года", "каждый день", "патиной", "историю", "уже мой"}
+TEXT_Y = 960     # по умолчанию центр; для каждого плана высота подбирается (placement.py)
+CARD_TEXT_Y = 1300  # на светлых карточках — под предметами
+
+
+def kf(*keys):
+    return m.focus_zoom(m.keyframes(list(keys)), None)
+
+
+def push(a, b, focus, pull=0.0, n=120):
+    return kf((0, a, focus, pull, 1), (0, b, focus, pull, n))
+
+
+# ---------------------------------------------------------------- план
+uzhe = wd("final", "уже")["start"]
+f_moi = round(uzhe * FPS) - round(130.15 * FPS)
+
+segs = [
+    # 1. вы в кадре
+    m.Segment(40.42, 43.82, push(1.08, 1.18, (540, 900)), (540, 900)),
+    # 2. закадровый голос (звук — IMG_0486, картинка — IMG_0494)
+    m.Segment(88.12, 89.78, push(1.05, 1.10, (520, 900)), None, video_in=18.0, video_file=HANDS),
+    m.Segment(90.80, 92.12, push(1.10, 1.14, (520, 900)), None, video_in=19.7, video_file=HANDS),
+    m.Segment(92.16, 94.36, push(1.00, 1.08, (540, 1000)), None, video_in=40.0, video_file=HANDS),
+    m.Segment(94.38, 96.40, push(1.10, 1.22, (560, 900), 0.2), None, video_in=43.0, video_file=HANDS),
+    m.Segment(96.46, 97.80, push(1.00, 1.08, (540, 960)), None, video_in=46.2, video_file=HANDS),
+    m.Segment(97.84, 99.72, push(1.12, 1.20, (520, 1000)), None, video_in=34.0, video_file=HANDS),
+    m.Segment(99.72, 101.66, push(1.00, 1.06, (540, 1000)), None, video_in=52.0, video_file=HANDS),
+    # 3. снова вы; наезд на «уже мой»
+    m.Segment(130.15, 133.20, kf((0, 1.06, (540, 860), 0, 1), (0, 1.12, (540, 860), 0, f_moi),
+                                  (f_moi, 1.32, (560, 560), 0, 6), (f_moi + 6, 1.35, (560, 560), 0, 30)),
+              (540, 860)),
+]
+total = m.layout(segs)
+
+
+def out_of(t, take_seg=None):
+    fr = round(t * FPS)
+    for s in segs:
+        if s.fin <= fr < s.fout:
+            return s.out_start + fr - s.fin
+    nxt = [s for s in segs if s.fin > fr]
+    return nxt[0].out_start if nxt else total
+
+
+# ---------------------------------------------------------------- субтитры
+import transcribe as tr  # noqa: E402
+
+groups = []
+for take in ("intro", "vo", "final"):
+    for g in tr.subtitle_groups(W[take]["words"]):
+        text = g["text"].replace("карт-холдер", "картхолдер")
+        a = out_of(g["start"])
+        b = out_of(g["end"]) + 4
+        groups.append([a, b, text, text in ACCENT])
+groups.sort()
+i = 0
+while i < len(groups) - 1:  # группы короче 0,2 с — к следующей (без акцентов, до 3 слов)
+    gi, gj = groups[i], groups[i + 1]
+    if (min(gi[1], gj[0]) - gi[0] < 6 and not gi[3] and not gj[3]
+            and len((gi[2] + " " + gj[2]).split()) <= 3 and gj[0] - gi[1] <= 6):
+        groups[i] = [gi[0], gj[1], gi[2] + " " + gj[2], False]
+        groups.pop(i + 1)
+    else:
+        i += 1
+for i in range(len(groups) - 1):
+    groups[i][1] = min(groups[i][1], groups[i + 1][0])
+groups = [g for g in groups if g[1] - g[0] >= 4]
+
+# ---------------------------------------------------------------- графика
+CACHE = os.path.join(OUT_DIR, "_work", "cutouts_cardholder")
+
+
+def grab(path, t):
+    r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t}", "-i", path, "-frames:v", "1",
+                        "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True)
+    return Image.frombytes("RGB", (m.W, m.H), r.stdout)
+
+
+# высота текста под каждый план: не закрывать лицо и не закрывать картхолдеры целиком
+seg_y = pl.plan_y(segs, TALK, grab, os.path.join(OUT_DIR, "_work", "text_y_cardholder.json"))
+
+
+def seg_index(k):
+    for i, s in enumerate(segs):
+        if s.out_start <= k < s.out_start + s.length:
+            last = i
+    return last
+
+
+groups = [tuple(g[:4]) + (seg_y[seg_index(g[0] + 2)],) for g in groups]
+
+black = co.cached(os.path.join(CACHE, "black.png"),
+                  lambda: co.collage_style(co.cutout(grab(HANDS, 51.0), (120, 80, 1080, 980)), color=True))
+brown = co.cached(os.path.join(CACHE, "brown.png"),
+                  lambda: co.collage_style(co.cutout(grab(HANDS, 57.0), (0, 700, 780, 1750)), color=True))
+co.release()
+
+cut_vo = segs[1].out_start
+cut_final = segs[8].out_start
+f_uzhe = out_of(wd("intro", "уже")["start"])
+f_ist = out_of(wd("vo", "изделие")["start"])
+
+cards = [
+    # «…уже больше года» — оба картхолдера с подписями, держится до шторки
+    kn.DuoCard(f_uzhe - 6, cut_vo + 1 - (f_uzhe - 6),
+               [(black, "НОВЫЙ", kn.INK), (brown, "1 ГОД", kn.INK)], cy=700, item_h=520),
+    # «…изделие приобретает историю» — коричневый (годовой) в чёрном круге
+    kn.CollageCard(f_ist, cut_final + 1 - f_ist, brown, circle=kn.INK, cy=720, cut_h=620,
+                   circle_r=320, exit_=1),
+]
+light = [(c.start, c.start + c.dur - 2) for c in cards]
+elements = cards + [
+    kn.WipeBar(cut_vo, color=kn.INK),
+    kn.WipeBar(cut_final, color=kn.WHITE),
+    kn.KineticWords(groups, light=light, y=TEXT_Y, light_y=CARD_TEXT_Y, accent_color=kn.INK),
+]
+sfx = [("whoosh", e.start) for e in elements if getattr(e, "sfx", None)]
+
+os.makedirs(OUT_DIR, exist_ok=True)
+out = os.path.join(OUT_DIR, NAME + ".mp4")
+m.render(TALK, segs, elements, sfx, out, os.path.join(OUT_DIR, "_work"))
+
+print(f"готово: {out}")
+for i, s in enumerate(segs):
+    print(f"  план {i + 1}: звук {s.fin / FPS:6.2f}–{s.fout / FPS:6.2f}, "
+          f"картинка {os.path.basename(s.video_file or TALK)} {s.vin / FPS:6.2f} → "
+          f"ролик {s.out_start / FPS:6.2f}–{(s.out_start + s.length) / FPS:6.2f}")
+print("  высота текста по планам:", seg_y)
+for a, b, t, acc, y in groups:
+    print(f"  {a / FPS:6.2f}–{b / FPS:6.2f} y={y} {'*' if acc else ' '} {t}")

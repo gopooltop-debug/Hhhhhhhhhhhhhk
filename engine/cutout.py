@@ -63,9 +63,15 @@ def cutout(img, box=None):
     return rgba.crop(bb) if bb else rgba
 
 
-def collage_style(rgba, contrast=1.35, grain=10, seed=3):
-    """Чёрно-белая «журнальная» вырезка: ч/б, контраст, зерно, тонкий светлый край."""
+def collage_style(rgba, contrast=1.35, grain=10, seed=3, color=False):
+    """Чёрно-белая «журнальная» вырезка: ч/б, контраст, зерно, мягкая тень.
+    color=True — цвет сохраняется (когда важен цвет кожи), только зерно и тень."""
     a = rgba.getchannel("A")
+    if color:
+        arr = np.asarray(rgba.convert("RGB"), np.float32)
+        arr += np.random.default_rng(seed).normal(0, grain * 0.5, arr.shape[:2])[..., None]
+        rgb = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+        return _with_shadow(Image.merge("RGBA", (*rgb.split(), a)), a)
     g = ImageOps.grayscale(rgba.convert("RGB"))
     g = ImageOps.autocontrast(g, cutoff=1)
     arr = np.asarray(g, np.float32)
@@ -74,6 +80,10 @@ def collage_style(rgba, contrast=1.35, grain=10, seed=3):
     arr += rng.normal(0, grain, arr.shape)
     g = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
     out = Image.merge("RGBA", (g, g, g, a))
+    return _with_shadow(out, a)
+
+
+def _with_shadow(out, a):
     # мягкая тень под вырезкой
     pad = 40
     canvas = Image.new("RGBA", (out.width + 2 * pad, out.height + 2 * pad), (0, 0, 0, 0))

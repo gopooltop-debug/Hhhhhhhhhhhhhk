@@ -457,11 +457,16 @@ class DrawCircle(Element):
 # ---------------------------------------------------------------- таймлайн
 
 class Segment:
-    def __init__(self, src_in, src_out, zoom, center, trans_in="cut", video_in=None):
+    def __init__(self, src_in, src_out, zoom, center, trans_in="cut", video_in=None,
+                 video_file=None, audio_file=None):
         self.fin = round(src_in * FPS)
         self.fout = round(src_out * FPS)
         # картинка может браться из другого места исходника, чем звук (перебивка)
         self.vin = round(video_in * FPS) if video_in is not None else self.fin
+        # файлы картинки и звука (None — общий исходник рендера): закадровый голос
+        # из одного файла поверх видео из другого
+        self.video_file = video_file
+        self.audio_file = audio_file
         # zoom: функция (кадр внутри отрезка, длина) -> (масштаб, dx, dy)
         #       или (масштаб, фокус, цель): точка-фокус исходника встаёт в точку-цель кадра
         self.zoom = zoom
@@ -563,19 +568,28 @@ SFX = {
 }
 
 
+def _voice(src, workdir, cache={}):
+    if src not in cache:
+        name = "voice_" + os.path.splitext(os.path.basename(src))[0] + ".wav"
+        voice = os.path.join(workdir, name)
+        run(["ffmpeg", "-v", "error", "-y", "-i", src, "-ac", "1", "-ar", str(SR),
+             "-af", VOICE_CHAIN, "-c:a", "pcm_f32le", voice])
+        cache[src] = np.frombuffer(subprocess.run(
+            ["ffmpeg", "-v", "error", "-i", voice, "-f", "f32le", "-"],
+            check=True, capture_output=True).stdout, dtype=np.float32)
+    return cache[src]
+
+
 def build_audio(src, segments, total, sfx_events, workdir):
-    voice = os.path.join(workdir, "voice_src.wav")
-    run(["ffmpeg", "-v", "error", "-y", "-i", src, "-ac", "1", "-ar", str(SR),
-         "-af", VOICE_CHAIN, "-c:a", "pcm_f32le", voice])
-    raw = np.frombuffer(subprocess.run(
-        ["ffmpeg", "-v", "error", "-i", voice, "-f", "f32le", "-"],
-        check=True, capture_output=True).stdout, dtype=np.float32)
     out = np.zeros(total * SPF + SR, dtype=np.float64)
     micro = int(0.012 * SR)
     xf = DISSOLVE * SPF
     for i, s in enumerate(segments):
+        raw = _voice(s.audio_file or src, workdir)
         a, b = s.fin * SPF, s.fout * SPF
         clip = raw[a:b].astype(np.float64).copy()
+        if len(clip) < (b - a):
+            clip = np.pad(clip, (0, (b - a) - len(clip)))
         env = np.ones(len(clip))
         nxt = segments[i + 1] if i + 1 < len(segments) else None
         if s.trans_in == "dissolve" and i:
@@ -668,11 +682,14 @@ def transform(img, scale, focus, target):
 def render(src, segments, elements, sfx_events, out_path, workdir, extras=None):
     os.makedirs(workdir, exist_ok=True)
     total = layout(segments)
-    needed = set()
+    needed = {}
     for s in segments:
-        needed.update(range(s.vin, s.vin + s.length))
+        needed.setdefault(s.video_file or src, set()).update(range(s.vin, s.vin + s.length))
     print(f"[render] {total} кадров ({total / FPS:.2f} с), декодирование…", file=sys.stderr)
-    frames = decode_graded(src, needed)
+    frames = {}
+    for vf, idx in needed.items():
+        for k, fr in decode_graded(vf, idx).items():
+            frames[(vf, k)] = fr
     vmask = vignette_mask()
     rng = np.random.default_rng(7)
 
@@ -703,7 +720,7 @@ def render(src, segments, elements, sfx_events, out_path, workdir, extras=None):
                 foc, tgt = s.center, (s.center[0] + dx, s.center[1] + dy)
             else:
                 sc, foc, tgt = z
-            img, mp = transform(frames[s.vin + f], sc, foc, tgt)
+            img, mp = transform(frames[(s.video_file or src, s.vin + f)], sc, foc, tgt)
             if s.trans_in == "dissolve" and f < DISSOLVE and acc is not None:
                 w = (f + 1) / (DISSOLVE + 1)
                 acc = acc * (1 - w) + img.astype(np.float32) * w

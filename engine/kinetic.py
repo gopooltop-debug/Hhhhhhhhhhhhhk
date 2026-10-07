@@ -87,10 +87,11 @@ class KineticWords(Element):
     """
     shadow_kw = {"radius": 14, "opacity": 0.5}
 
-    def __init__(self, groups, light=(), size=128, y=CENTER_Y, light_y=1230):
-        self.groups = sorted(groups)
+    def __init__(self, groups, light=(), size=128, y=CENTER_Y, light_y=1230, accent_color=BORDO):
+        self.groups = sorted(groups, key=lambda g: g[0])
         self.light = list(light)
         self.size, self.base_y, self.light_y = size, y, light_y
+        self.accent_color = accent_color
         self.start = self.groups[0][0]
         self.dur = self.groups[-1][1] + 6 - self.start
         # фразы для линии: группы, идущие подряд без паузы
@@ -120,7 +121,7 @@ class KineticWords(Element):
             top = pi.height + 4
         if accent and wipe > 0:
             d = ImageDraw.Draw(blk)
-            d.rectangle([0, top, bw * wipe, top + mi.height + 2 * pady], fill=BORDO + (255,))
+            d.rectangle([0, top, bw * wipe, top + mi.height + 2 * pady], fill=self.accent_color + (255,))
         blk.alpha_composite(mi, (padx, top + pady))
         return blk, top + pady + mi.height / 2  # центр главного слова внутри блока
 
@@ -129,7 +130,9 @@ class KineticWords(Element):
         light = self._is_light(k)
         color = INK if light else (255, 255, 255)
         line_y = None
-        for i, (a, b, text, accent) in enumerate(self.groups):
+        for i, grp in enumerate(self.groups):
+            a, b, text, accent = grp[:4]
+            own_y = grp[4] if len(grp) > 4 else None  # высота, подобранная под кадр
             if not (a - 0 <= k < b + 6):
                 continue
             g = k - a
@@ -148,11 +151,12 @@ class KineticWords(Element):
                 else:
                     ang, dy, blur, al = 0, -qe * 20, qe * 18, 1 - qe
             # позиция выбирается на старте группы и не прыгает, пока слово на экране
-            self.y = self.light_y if self._is_light(a) else self.base_y
+            self.y = self.light_y if self._is_light(a) else (own_y or self.base_y)
             if k < b:
                 line_y = self.y  # линия — под тем словом, что сейчас на экране
             wipe = ease_out((g - 2) / 6) if accent else 0
-            blk, main_cy = self._block(text, accent, (255, 255, 255) if accent else color, wipe)
+            plate_txt = (255, 255, 255) if sum(self.accent_color) < 384 else INK
+            blk, main_cy = self._block(text, accent, plate_txt if accent else color, wipe)
             img = flip(blk, ang, blur) if (abs(ang) > 0.01 or blur > 1) else blk
             # центр главного слова держим на self.y
             off = main_cy - blk.height / 2
@@ -238,6 +242,54 @@ class CollageCard(Element):
             ci2.putalpha(Image.fromarray(a.astype(np.uint8)))
             card.alpha_composite(ci2, (max(0, x), max(0, y)), (max(0, -x), max(0, -y)))
         # въезд: шторка слева направо; выезд: уезжает влево
+        x0 = int(-W * (1 - p) - W * q)
+        layer.alpha_composite(card, (max(0, x0), 0), (max(0, -x0), 0))
+
+
+class DuoCard(Element):
+    """Светлая карточка «два предмета»: две вырезки рядом, над каждой — подпись-капсула.
+    items: [(вырезка RGBA, подпись, цвет капсулы)], слева направо."""
+
+    def __init__(self, start, dur, items, cy=720, item_h=560, gap=40, enter=7, exit_=1):
+        self.start, self.dur, self.items = start, dur, items
+        self.cy, self.item_h, self.gap = cy, item_h, gap
+        self.enter, self.exit = enter, exit_
+        self.shadow = False
+        self.sfx = ("whoosh", 0)
+        self.bg = light_band(Image.new("RGBA", (W, H), WHITE + (255,)))
+        self.imgs = []
+        for (cut, label, col) in items:
+            sc = min(item_h / cut.height, (W - 2 * 60 - gap) / 2 / cut.width)
+            self.imgs.append(cut.resize((int(cut.width * sc), int(cut.height * sc)), Image.LANCZOS))
+
+    def draw(self, layer, f, ctx):
+        p = ease_out(f / self.enter)
+        q = ease_in_out((f - (self.dur - self.exit)) / max(1, self.exit))
+        card = self.bg.copy()
+        n = len(self.imgs)
+        slot = (W - 120) / n
+        for i, (img, (cut, label, col)) in enumerate(zip(self.imgs, self.items)):
+            t = ease_out((f - 3 - 4 * i) / 9)
+            if t <= 0:
+                continue
+            cx = 60 + slot * (i + 0.5)
+            x = int(cx - img.width / 2)
+            y = int(self.cy - img.height / 2 + 50 * (1 - t))
+            a = np.asarray(img.getchannel("A"), np.float32) * t
+            im2 = img.copy()
+            im2.putalpha(Image.fromarray(a.astype(np.uint8)))
+            card.alpha_composite(im2, (max(0, x), max(0, y)), (max(0, -x), max(0, -y)))
+            # подпись-капсула над предметом
+            lt = ease_out((f - 8 - 4 * i) / 8)
+            if lt > 0:
+                ti = text_image(label, "mont800", 38, (255, 255, 255), spacing=4)
+                cw, ch = ti.width + 48, ti.height + 26
+                cap = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
+                ImageDraw.Draw(cap).rounded_rectangle([0, 0, cw - 1, ch - 1], radius=ch // 2,
+                                                      fill=col + (255,))
+                cap.alpha_composite(ti, (24, 13))
+                ty = self.cy - self.item_h / 2 - 70 - 20 * (1 - lt)
+                paste_center(card, cap, cx, ty, lt)
         x0 = int(-W * (1 - p) - W * q)
         layer.alpha_composite(card, (max(0, x0), 0), (max(0, -x0), 0))
 
