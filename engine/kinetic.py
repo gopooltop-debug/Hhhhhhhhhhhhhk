@@ -259,7 +259,7 @@ class DuoCard(Element):
         self.bg = light_band(Image.new("RGBA", (W, H), WHITE + (255,)))
         self.imgs = []
         for (cut, label, col) in items:
-            sc = min(item_h / cut.height, (W - 2 * 60 - gap) / 2 / cut.width)
+            sc = min(item_h / cut.height, (W - 2 * 20) / len(items) * 1.08 / cut.width)
             self.imgs.append(cut.resize((int(cut.width * sc), int(cut.height * sc)), Image.LANCZOS))
 
     def draw(self, layer, f, ctx):
@@ -267,12 +267,12 @@ class DuoCard(Element):
         q = ease_in_out((f - (self.dur - self.exit)) / max(1, self.exit))
         card = self.bg.copy()
         n = len(self.imgs)
-        slot = (W - 120) / n
+        slot = (W - 40) / n
         for i, (img, (cut, label, col)) in enumerate(zip(self.imgs, self.items)):
             t = ease_out((f - 3 - 4 * i) / 9)
             if t <= 0:
                 continue
-            cx = 60 + slot * (i + 0.5)
+            cx = 20 + slot * (i + 0.5)
             x = int(cx - img.width / 2)
             y = int(self.cy - img.height / 2 + 50 * (1 - t))
             a = np.asarray(img.getchannel("A"), np.float32) * t
@@ -282,13 +282,13 @@ class DuoCard(Element):
             # подпись-капсула над предметом
             lt = ease_out((f - 8 - 4 * i) / 8)
             if lt > 0:
-                ti = text_image(label, "mont800", 38, (255, 255, 255), spacing=4)
+                ti = text_image(label, "mont800", 48, (255, 255, 255), spacing=4)
                 cw, ch = ti.width + 48, ti.height + 26
                 cap = Image.new("RGBA", (cw, ch), (0, 0, 0, 0))
                 ImageDraw.Draw(cap).rounded_rectangle([0, 0, cw - 1, ch - 1], radius=ch // 2,
                                                       fill=col + (255,))
                 cap.alpha_composite(ti, (24, 13))
-                ty = self.cy - self.item_h / 2 - 70 - 20 * (1 - lt)
+                ty = self.cy - img.height / 2 - 40 - 20 * (1 - lt)
                 paste_center(card, cap, cx, ty, lt)
         x0 = int(-W * (1 - p) - W * q)
         layer.alpha_composite(card, (max(0, x0), 0), (max(0, -x0), 0))

@@ -84,25 +84,31 @@ def out_of(t, take_seg=None):
 
 
 # ---------------------------------------------------------------- субтитры
-import transcribe as tr  # noqa: E402
+# Группы заданы вручную (текст, сколько слов распознавания в неё входит) — так фраза
+# режется по смыслу; время каждой группы берётся из распознавания.
+SPEC = {
+    "intro": [("один из них", 3), ("новый", 1), ("а вторым", 2), ("я пользуюсь", 2),
+              ("уже", 1), ("больше года", 2)],
+    "vo": [("этот", 1), ("картхолдер", 2), ("я ношу", 2), ("с собой", 2), ("каждый день", 2),
+           ("вот что", 2), ("происходит", 1), ("с натуральной", 2), ("кожей", 1),
+           ("со временем", 2), ("она покрывается", 2), ("патиной", 1), ("цвет", 1),
+           ("становится глубже", 2), ("появляются", 1), ("небольшие следы", 2),
+           ("использования", 1), ("и изделие", 2), ("приобретает", 1), ("историю", 1)],
+    "final": [("новый", 1), ("это просто", 2), ("новый", 1), ("а этот", 2), ("уже мой", 2)],
+}
 
 groups = []
-for take in ("intro", "vo", "final"):
-    for g in tr.subtitle_groups(W[take]["words"]):
-        text = g["text"].replace("карт-холдер", "картхолдер")
-        a = out_of(g["start"])
-        b = out_of(g["end"]) + 4
+for take, spec in SPEC.items():
+    ws = W[take]["words"]
+    assert sum(n for _, n in spec) == len(ws), (take, len(ws))
+    i = 0
+    for text, n in spec:
+        part = ws[i:i + n]
+        i += n
+        a = out_of(part[0]["start"])
+        b = out_of(part[-1]["end"]) + 4
         groups.append([a, b, text, text in ACCENT])
 groups.sort()
-i = 0
-while i < len(groups) - 1:  # группы короче 0,2 с — к следующей (без акцентов, до 3 слов)
-    gi, gj = groups[i], groups[i + 1]
-    if (min(gi[1], gj[0]) - gi[0] < 6 and not gi[3] and not gj[3]
-            and len((gi[2] + " " + gj[2]).split()) <= 3 and gj[0] - gi[1] <= 6):
-        groups[i] = [gi[0], gj[1], gi[2] + " " + gj[2], False]
-        groups.pop(i + 1)
-    else:
-        i += 1
 for i in range(len(groups) - 1):
     groups[i][1] = min(groups[i][1], groups[i + 1][0])
 groups = [g for g in groups if g[1] - g[0] >= 4]
@@ -144,7 +150,7 @@ f_ist = out_of(wd("vo", "изделие")["start"])
 cards = [
     # «…уже больше года» — оба картхолдера с подписями, держится до шторки
     kn.DuoCard(f_uzhe - 6, cut_vo + 1 - (f_uzhe - 6),
-               [(black, "НОВЫЙ", kn.INK), (brown, "1 ГОД", kn.INK)], cy=700, item_h=520),
+               [(black, "НОВЫЙ", kn.INK), (brown, "1 ГОД", kn.INK)], cy=720, item_h=700),
     # «…изделие приобретает историю» — коричневый (годовой) в чёрном круге
     kn.CollageCard(f_ist, cut_final + 1 - f_ist, brown, circle=kn.INK, cy=720, cut_h=620,
                    circle_r=320, exit_=1),
