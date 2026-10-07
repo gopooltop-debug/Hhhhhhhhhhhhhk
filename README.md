@@ -6,6 +6,10 @@
 - `engine/fonts/` — Inter и Lora (OFL, из пакетов @fontsource).
 - `projects/` — таймлайн каждого ролика. Запуск:
   `pip install numpy pillow opencv-python-headless fonttools && python3 projects/2026-10-05_kirka.py test_2.mp4 output`
+- `engine/transcribe.py` — распознавание речи (faster-whisper large-v3-turbo) с таймингом слов и разбивкой
+  на субтитры по 1–2 слова: `python3 engine/transcribe.py видео.mp4 projects/имя.words.json`.
+  Нужны `pip install faster-whisper` и доступ к `huggingface.co`, `*.hf.co` (модель ~1,6 ГБ качается при первом запуске).
+  В JSON можно поправить слова и отметить акценты (`"accent": true`).
 - `output/` — готовые ролики.
 
 ## 2026-10-05 «кирка» v2 (19,6 сек)
