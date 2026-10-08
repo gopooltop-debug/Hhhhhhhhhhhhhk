@@ -26,7 +26,7 @@ SRC_DIR = sys.argv[1] if len(sys.argv) > 1 else "."
 OUT_DIR = sys.argv[2] if len(sys.argv) > 2 else "output"
 TALK = os.path.join(SRC_DIR, "IMG_0486.mp4")
 HANDS = os.path.join(SRC_DIR, "IMG_0494.mp4")
-NAME = "2026-10-07_картхолдер_v2"
+NAME = "2026-10-07_картхолдер_v3"
 FPS = m.FPS
 
 W = json.load(open(os.path.join(HERE, "cardholder.words.json"), encoding="utf-8"))
