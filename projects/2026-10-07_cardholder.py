@@ -32,6 +32,7 @@ FPS = m.FPS
 W = json.load(open(os.path.join(HERE, "cardholder.words.json"), encoding="utf-8"))
 W["final"]["words"][0]["start"] = 130.28   # распознавание поставило начало дубля, речь с 130,28
 W["vo"]["words"][0]["start"] = 88.80       # «Этот» — с 88,8; до него вздох (88,0–88,4), вырезан
+W["vo"]["words"][3]["start"] = 90.62       # «я» звучит дважды (89,6 и 90,62) — берём второе, перед «ношу»
 
 
 def wd(take, word, nth=0):
@@ -60,8 +61,8 @@ segs = [
     m.Segment(40.42, 43.82, kf((0, 1.30, (540, 900), 0, 1), (0, 1.00, (540, 900), 0, 15),
                                (15, 1.06, (540, 900), 0, 87)), (540, 900)),
     # 2. закадровый голос (звук — IMG_0486, картинка — IMG_0494)
-    m.Segment(88.74, 89.78, push(1.05, 1.10, (520, 900)), None, video_in=18.6, video_file=HANDS),
-    m.Segment(90.80, 92.12, push(1.10, 1.14, (520, 900)), None, video_in=19.7, video_file=HANDS),
+    m.Segment(88.74, 89.56, push(1.05, 1.10, (520, 900)), None, video_in=18.6, video_file=HANDS),
+    m.Segment(90.58, 92.12, push(1.10, 1.14, (520, 900)), None, video_in=19.5, video_file=HANDS),
     m.Segment(92.16, 94.36, push(1.00, 1.08, (540, 1000)), None, video_in=40.0, video_file=HANDS),
     m.Segment(94.38, 96.40, push(1.10, 1.22, (560, 900), 0.2), None, video_in=43.0, video_file=HANDS),
     m.Segment(96.46, 97.80, push(1.00, 1.08, (540, 960)), None, video_in=46.2, video_file=HANDS),
