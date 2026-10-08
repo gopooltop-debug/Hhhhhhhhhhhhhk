@@ -27,7 +27,7 @@ SRC_DIR = sys.argv[1] if len(sys.argv) > 1 else "."
 OUT_DIR = sys.argv[2] if len(sys.argv) > 2 else "output"
 TALK = os.path.join(SRC_DIR, "IMG_0490.mp4")
 HANDS = os.path.join(SRC_DIR, "IMG_0493.mp4")
-NAME = "2026-10-08_обложка_v1"
+NAME = "2026-10-08_обложка_v2"
 FPS = m.FPS
 
 RAW = json.load(open(os.path.join(HERE, "cardholder2_raw.words.json"), encoding="utf-8"))["IMG_0490"]
@@ -78,8 +78,11 @@ segs = [
     m.Segment(39.90, 41.88, push(1.00, 1.06, (540, 900)), None, video_in=14.0, video_file=HANDS),   # гладкая
     m.Segment(53.50, 55.70, push(1.10, 1.18, (540, 860)), None, video_in=8.0, video_file=HANDS),    # царапины
     m.Segment(55.70, 57.62, push(1.00, 1.08, (540, 900)), None, video_in=24.5, video_file=HANDS),   # гладкая
+    # «Вот результат» — поверх обложки крупно (в этот момент в кадре читаете с ноутбука);
+    # после фразы короткая пауза (тихий кусок исходника 84,7 с), обложка держится ~1,6 с
+    m.Segment(58.05, 58.98, push(1.00, 1.05, (540, 900)), None, video_in=40.0, video_file=HANDS),
+    m.Segment(84.70, 85.40, push(1.05, 1.08, (540, 900)), None, video_in=40.93, video_file=HANDS),
     # 3. снова в кадре
-    m.Segment(58.05, 58.98, push(1.08, 1.12, (540, 900)), (540, 900)),
     m.Segment(80.55, 84.65, push(1.00, 1.05, (540, 900)), (540, 900)),
 ]
 total = m.layout(segs)
@@ -136,7 +139,7 @@ def seg_index(k):
 groups = [tuple(g[:4]) + (seg_y[seg_index(g[0] + 2)],) for g in groups]
 
 # ---------------------------------------------------------------- анимации (по референсу, немного)
-cut_vo, cut_res = segs[1].out_start, segs[5].out_start
+cut_vo, cut_res = segs[1].out_start, segs[7].out_start  # шторка — на возврате к вам в кадр
 f_side = out_of(wstart("vo1", "одна"))
 f_rest = out_of(wstart("vo1", "восстановить"))
 f_fill0, f_fill1 = segs[3].out_start + 4, segs[4].out_start + segs[4].length - 8
@@ -149,7 +152,7 @@ elements = [
     kn.Chip(f_side, segs[1].out_start + segs[1].length - 2 - f_side, "ПОСЛЕ ИСПОЛЬЗОВАНИЯ", "scratch",
             xy=(540, 420)),
     # «…решил немного восстановить» → «под воздействием тепла… менее заметными»: полоса прогресса
-    kn.ProgressPanel(f_rest, cut_res - 3 - f_rest, "ВОССТАНОВЛЕНИЕ", "heat", xy=(540, 420),
+    kn.ProgressPanel(f_rest, segs[5].out_start - 3 - f_rest, "ВОССТАНОВЛЕНИЕ", "heat", xy=(540, 420),
                      fill_from=f_fill0, fill_to=f_fill1),
     # финал: показываете одну сторону, потом другую — плашки внизу, под текстом:
     # не закрывают ни лицо, ни обложку
