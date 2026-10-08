@@ -294,6 +294,112 @@ class DuoCard(Element):
         layer.alpha_composite(card, (max(0, x0), 0), (max(0, -x0), 0))
 
 
+def _icon(kind, size, color):
+    """Простые иконки линиями (рисуются сами, без чужих картинок)."""
+    im = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    w = max(3, size // 14)
+    c = color + (255,)
+    if kind == "scratch":    # три косых штриха
+        for i, off in enumerate((-0.22, 0.0, 0.22)):
+            x0, y0 = size * (0.28 + off), size * (0.72 - 0.06 * i)
+            d.line([x0, y0, x0 + size * 0.34, y0 - size * 0.42], fill=c, width=w)
+    elif kind == "heat":     # три волны тепла
+        for i in range(3):
+            x = size * (0.28 + 0.22 * i)
+            pts = [(x + size * 0.06 * math.sin(t / 3), size * 0.18 + size * 0.64 * t / 12)
+                   for t in range(13)]
+            d.line(pts, fill=c, width=w, joint="curve")
+    elif kind == "check":    # галочка
+        d.line([size * 0.22, size * 0.52, size * 0.42, size * 0.72, size * 0.8, size * 0.3],
+               fill=c, width=w + 1, joint="curve")
+    elif kind == "dot":
+        r = size * 0.16
+        d.ellipse([size / 2 - r, size / 2 - r, size / 2 + r, size / 2 + r], fill=c)
+    return im
+
+
+def _pop(f, n=9):
+    """Пружинка: 0.6 → 1.08 → 1.0."""
+    t = clamp01(f / n)
+    if t >= 1:
+        return 1.0
+    return 0.6 + 0.4 * ease_out(t) + 0.12 * math.sin(math.pi * t) * (1 - t)
+
+
+class Chip(Element):
+    """Плашка-иконка (по мотивам референса): белая скруглённая плитка с иконкой и подписью,
+    выскакивает с пружинкой возле предмета/рук, уходит сжатием."""
+
+    def __init__(self, start, dur, label, icon="dot", xy=(540, 420), dark=False):
+        self.start, self.dur, self.label, self.icon, self.xy = start, dur, label, icon, xy
+        self.dark = dark
+        self.sfx = ("pop", 0)
+        self.shadow_kw = {"radius": 16, "opacity": 0.35}
+
+    def _tile(self):
+        bg, fg = (INK, (255, 255, 255)) if self.dark else (WHITE, INK)
+        ti = text_image(self.label, "mont800", 40, fg, spacing=3)
+        ic = _icon(self.icon, 60, fg)
+        h = 112
+        w = 30 + ic.width + 16 + ti.width + 34
+        tile = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        ImageDraw.Draw(tile).rounded_rectangle([0, 0, w - 1, h - 1], radius=26, fill=bg + (245,))
+        tile.alpha_composite(ic, (30, (h - ic.height) // 2))
+        tile.alpha_composite(ti, (30 + ic.width + 16, (h - ti.height) // 2))
+        return tile
+
+    def draw(self, layer, f, ctx):
+        sc = _pop(f) * (1 - 0.4 * ease_in_out((f - (self.dur - 5)) / 5))
+        al = clamp01(f / 3) * (1 - ease_in_out((f - (self.dur - 5)) / 5))
+        tile = self._tile()
+        tile = tile.resize((max(1, int(tile.width * sc)), max(1, int(tile.height * sc))), Image.LANCZOS)
+        paste_center(layer, tile, self.xy[0], self.xy[1], al)
+
+
+class ProgressPanel(Element):
+    """Панель «иконка + подпись + полоса прогресса» (по мотивам референса).
+    Полоса заполняется от fill_from до fill_to (абсолютные кадры)."""
+
+    def __init__(self, start, dur, label, icon="heat", xy=(540, 420), fill_from=None, fill_to=None,
+                 width=640):
+        self.start, self.dur, self.label, self.icon, self.xy = start, dur, label, icon, xy
+        self.fill_from = start + 8 if fill_from is None else fill_from
+        self.fill_to = start + dur - 6 if fill_to is None else fill_to
+        self.width = width
+        self.sfx = ("pop", 0)
+        self.shadow_kw = {"radius": 16, "opacity": 0.35}
+
+    def draw(self, layer, f, ctx):
+        k = self.start + f
+        w, h = self.width, 168
+        panel = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(panel)
+        d.rounded_rectangle([0, 0, w - 1, h - 1], radius=30, fill=WHITE + (245,))
+        # иконка в чёрной плитке
+        it = Image.new("RGBA", (84, 84), (0, 0, 0, 0))
+        ImageDraw.Draw(it).rounded_rectangle([0, 0, 83, 83], radius=20, fill=INK + (255,))
+        ic_pop = _pop(f - 3)
+        ic = _icon(self.icon, 60, (255, 255, 255))
+        it.alpha_composite(ic, (12, 12))
+        it = it.resize((max(1, int(84 * ic_pop)), max(1, int(84 * ic_pop))), Image.LANCZOS)
+        panel.alpha_composite(it, (int(24 + 42 - it.width / 2), int(h / 2 - it.height / 2)))
+        ti = text_image(self.label, "mont800", 36, INK, spacing=3)
+        panel.alpha_composite(ti, (132, 32))
+        # полоса
+        p = ease_in_out((k - self.fill_from) / max(1, self.fill_to - self.fill_from))
+        x0, x1, y0 = 132, w - 120, 104
+        d.rounded_rectangle([x0, y0, x1, y0 + 16], radius=8, fill=LIGHT_GRAY + (255,))
+        if p > 0:
+            d.rounded_rectangle([x0, y0, x0 + max(16, (x1 - x0) * p), y0 + 16], radius=8, fill=INK + (255,))
+        pc = text_image(f"{int(round(p * 100))}%", "mont800", 34, INK)
+        panel.alpha_composite(pc, (w - 30 - pc.width, y0 + 8 - pc.height // 2))
+        sc = _pop(f) * (1 - 0.3 * ease_in_out((f - (self.dur - 5)) / 5))
+        al = clamp01(f / 3) * (1 - ease_in_out((f - (self.dur - 5)) / 5))
+        panel = panel.resize((max(1, int(w * sc)), max(1, int(h * sc))), Image.LANCZOS)
+        paste_center(layer, panel, self.xy[0], self.xy[1], al)
+
+
 class WipeBar(Element):
     """Шторка-переход: цветная полоса проходит через кадр, склейка — под ней (в середине)."""
 
@@ -328,3 +434,14 @@ def tone_whoosh(seed=5):
 
 
 m.SFX["whoosh"] = lambda: m.norm_peak(tone_whoosh(), -24)
+
+
+def tone_pop():
+    """Мягкий «поп» интерфейса: короткий тон со спадом высоты."""
+    t = np.arange(int(0.09 * m.SR)) / m.SR
+    f = 900 + 700 * np.exp(-t * 60)
+    ph = 2 * np.pi * np.cumsum(f) / m.SR
+    return np.sin(ph) * np.exp(-t * 45)
+
+
+m.SFX["pop"] = lambda: m.norm_peak(tone_pop(), -26)
