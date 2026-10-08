@@ -151,9 +151,10 @@ elements = [
     # «…решил немного восстановить» → «под воздействием тепла… менее заметными»: полоса прогресса
     kn.ProgressPanel(f_rest, cut_res - 3 - f_rest, "ВОССТАНОВЛЕНИЕ", "heat", xy=(540, 420),
                      fill_from=f_fill0, fill_to=f_fill1),
-    # финал: показываете одну сторону, потом другую — плашки слева от обложки, лицо не закрывают
-    kn.Chip(f_left, f_right - f_left, "ПОСЛЕ ИСПОЛЬЗОВАНИЯ", "scratch", xy=(270, 700)),
-    kn.Chip(f_right, total + 10 - f_right, "ПОСЛЕ УХОДА", "check", xy=(250, 860), dark=True),
+    # финал: показываете одну сторону, потом другую — плашки внизу, под текстом:
+    # не закрывают ни лицо, ни обложку
+    kn.Chip(f_left, f_right - f_left, "ПОСЛЕ ИСПОЛЬЗОВАНИЯ", "scratch", xy=(540, 1330)),
+    kn.Chip(f_right, total + 10 - f_right, "ПОСЛЕ УХОДА", "check", xy=(540, 1330), dark=True),
     kn.KineticWords(groups, y=960, accent_color=kn.INK),
 ]
 sfx = [(e.sfx[0], e.start) for e in elements if getattr(e, "sfx", None)]
