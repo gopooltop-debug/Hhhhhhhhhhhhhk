@@ -26,11 +26,12 @@ SRC_DIR = sys.argv[1] if len(sys.argv) > 1 else "."
 OUT_DIR = sys.argv[2] if len(sys.argv) > 2 else "output"
 TALK = os.path.join(SRC_DIR, "IMG_0486.mp4")
 HANDS = os.path.join(SRC_DIR, "IMG_0494.mp4")
-NAME = "2026-10-07_картхолдер_v1"
+NAME = "2026-10-07_картхолдер_v2"
 FPS = m.FPS
 
 W = json.load(open(os.path.join(HERE, "cardholder.words.json"), encoding="utf-8"))
 W["final"]["words"][0]["start"] = 130.28   # распознавание поставило начало дубля, речь с 130,28
+W["vo"]["words"][0]["start"] = 88.80       # «Этот» — с 88,8; до него вздох (88,0–88,4), вырезан
 
 
 def wd(take, word, nth=0):
@@ -40,7 +41,6 @@ def wd(take, word, nth=0):
 
 ACCENT = {"больше года", "каждый день", "патиной", "историю", "уже мой"}
 TEXT_Y = 960     # по умолчанию центр; для каждого плана высота подбирается (placement.py)
-CARD_TEXT_Y = 1300  # на светлых карточках — под предметами
 
 
 def kf(*keys):
@@ -56,10 +56,11 @@ uzhe = wd("final", "уже")["start"]
 f_moi = round(uzhe * FPS) - round(130.15 * FPS)
 
 segs = [
-    # 1. вы в кадре
-    m.Segment(40.42, 43.82, push(1.08, 1.18, (540, 900)), (540, 900)),
+    # 1. вы в кадре; обратный зум в начале: ×1,30 → ×1,00 за ~0,5 с, дальше медленный наезд
+    m.Segment(40.42, 43.82, kf((0, 1.30, (540, 900), 0, 1), (0, 1.00, (540, 900), 0, 15),
+                               (15, 1.06, (540, 900), 0, 87)), (540, 900)),
     # 2. закадровый голос (звук — IMG_0486, картинка — IMG_0494)
-    m.Segment(88.12, 89.78, push(1.05, 1.10, (520, 900)), None, video_in=18.0, video_file=HANDS),
+    m.Segment(88.74, 89.78, push(1.05, 1.10, (520, 900)), None, video_in=18.6, video_file=HANDS),
     m.Segment(90.80, 92.12, push(1.10, 1.14, (520, 900)), None, video_in=19.7, video_file=HANDS),
     m.Segment(92.16, 94.36, push(1.00, 1.08, (540, 1000)), None, video_in=40.0, video_file=HANDS),
     m.Segment(94.38, 96.40, push(1.10, 1.22, (560, 900), 0.2), None, video_in=43.0, video_file=HANDS),
@@ -114,7 +115,6 @@ for i in range(len(groups) - 1):
 groups = [g for g in groups if g[1] - g[0] >= 4]
 
 # ---------------------------------------------------------------- графика
-CACHE = os.path.join(OUT_DIR, "_work", "cutouts_cardholder")
 
 
 def grab(path, t):
@@ -136,30 +136,14 @@ def seg_index(k):
 
 groups = [tuple(g[:4]) + (seg_y[seg_index(g[0] + 2)],) for g in groups]
 
-black = co.cached(os.path.join(CACHE, "black.png"),
-                  lambda: co.collage_style(co.cutout(grab(HANDS, 51.0), (120, 80, 1080, 980)), color=True))
-brown = co.cached(os.path.join(CACHE, "brown.png"),
-                  lambda: co.collage_style(co.cutout(grab(HANDS, 57.0), (0, 700, 780, 1750)), color=True))
-co.release()
-
 cut_vo = segs[1].out_start
 cut_final = segs[8].out_start
-f_uzhe = out_of(wd("intro", "уже")["start"])
-f_ist = out_of(wd("vo", "изделие")["start"])
 
-cards = [
-    # «…уже больше года» — оба картхолдера с подписями, держится до шторки
-    kn.DuoCard(f_uzhe - 6, cut_vo + 1 - (f_uzhe - 6),
-               [(black, "НОВЫЙ", kn.INK), (brown, "1 ГОД", kn.INK)], cy=720, item_h=700),
-    # «…изделие приобретает историю» — коричневый (годовой) в чёрном круге
-    kn.CollageCard(f_ist, cut_final + 1 - f_ist, brown, circle=kn.INK, cy=720, cut_h=620,
-                   circle_r=320, exit_=1),
-]
-light = [(c.start, c.start + c.dur - 2) for c in cards]
-elements = cards + [
+# v2: карточки с вырезками (коллаж «новый / 1 год» и круг) убраны — только видео, текст и шторки
+elements = [
     kn.WipeBar(cut_vo, color=kn.INK),
     kn.WipeBar(cut_final, color=kn.WHITE),
-    kn.KineticWords(groups, light=light, y=TEXT_Y, light_y=CARD_TEXT_Y, accent_color=kn.INK),
+    kn.KineticWords(groups, y=TEXT_Y, accent_color=kn.INK),
 ]
 sfx = [("whoosh", e.start) for e in elements if getattr(e, "sfx", None)]
 
