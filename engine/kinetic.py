@@ -353,8 +353,10 @@ class Chip(Element):
         sc = _pop(f) * (1 - 0.4 * ease_in_out((f - (self.dur - 5)) / 5))
         al = clamp01(f / 3) * (1 - ease_in_out((f - (self.dur - 5)) / 5))
         tile = self._tile()
+        # плашка целиком в кадре: отступ 40 px слева, справа не заходит под иконки (x > 960)
+        cx = min(max(self.xy[0], 40 + tile.width / 2), 960 - tile.width / 2)
         tile = tile.resize((max(1, int(tile.width * sc)), max(1, int(tile.height * sc))), Image.LANCZOS)
-        paste_center(layer, tile, self.xy[0], self.xy[1], al)
+        paste_center(layer, tile, cx, self.xy[1], al)
 
 
 class ProgressPanel(Element):
