@@ -438,7 +438,7 @@ class ProgressPanel(Element):
         panel.alpha_composite(ti, (132, 32))
         # полоса
         p = ease_in_out((k - self.fill_from) / max(1, self.fill_to - self.fill_from))
-        x0, x1, y0 = 132, w - 120, 104
+        x0, x1, y0 = 132, w - (160 if self.values else 120), 104  # место под подпись справа
         d.rounded_rectangle([x0, y0, x1, y0 + 16], radius=8, fill=LIGHT_GRAY + (255,))
         if p > 0:
             d.rounded_rectangle([x0, y0, x0 + max(16, (x1 - x0) * p), y0 + 16], radius=8, fill=INK + (255,))
