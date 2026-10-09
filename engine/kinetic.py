@@ -313,6 +313,15 @@ def _icon(kind, size, color):
     elif kind == "check":    # галочка
         d.line([size * 0.22, size * 0.52, size * 0.42, size * 0.72, size * 0.8, size * 0.3],
                fill=c, width=w + 1, joint="curve")
+    elif kind == "fold":     # зигзаг сгиба
+        pts = [(size * 0.16, size * 0.7), (size * 0.38, size * 0.3), (size * 0.6, size * 0.7),
+               (size * 0.84, size * 0.3)]
+        d.line(pts, fill=c, width=w, joint="curve")
+    elif kind == "clock":    # часы
+        r = size * 0.34
+        d.ellipse([size / 2 - r, size / 2 - r, size / 2 + r, size / 2 + r], outline=c, width=w)
+        d.line([size / 2, size / 2, size / 2, size / 2 - r * 0.62], fill=c, width=w)
+        d.line([size / 2, size / 2, size / 2 + r * 0.5, size / 2 + r * 0.2], fill=c, width=w)
     elif kind == "dot":
         r = size * 0.16
         d.ellipse([size / 2 - r, size / 2 - r, size / 2 + r, size / 2 + r], fill=c)
@@ -359,16 +368,55 @@ class Chip(Element):
         paste_center(layer, tile, cx, self.xy[1], al)
 
 
+class CounterChip(Chip):
+    """Плашка-счётчик: «СКЛАДКИ  1» → 2 → 5 … ; steps: [(абсолютный кадр, значение)].
+    На каждой смене числа — маленькая пружинка цифры и «поп»."""
+
+    def __init__(self, start, dur, label, steps, icon="fold", xy=(540, 420), dark=False):
+        super().__init__(start, dur, label, icon, xy, dark)
+        self.steps = sorted(steps)
+
+    def pop_frames(self):
+        return [k for k, _ in self.steps[1:]]
+
+    def _tile(self):
+        k = self._k
+        val, since = self.steps[0][1], self.steps[0][0]
+        for fk, v in self.steps:
+            if k >= fk:
+                val, since = v, fk
+        bg, fg = (INK, (255, 255, 255)) if self.dark else (WHITE, INK)
+        ti = text_image(self.label, "mont800", 40, fg, spacing=3)
+        ic = _icon(self.icon, 60, fg)
+        num = text_image(str(val), "mont900", 52, fg)
+        nsc = _pop(k - since, 6) if since > self.steps[0][0] else 1.0
+        num = num.resize((max(1, int(num.width * nsc)), max(1, int(num.height * nsc))), Image.LANCZOS)
+        h = 112
+        w = 30 + ic.width + 16 + ti.width + 22 + 70 + 30
+        tile = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        ImageDraw.Draw(tile).rounded_rectangle([0, 0, w - 1, h - 1], radius=26, fill=bg + (245,))
+        tile.alpha_composite(ic, (30, (h - ic.height) // 2))
+        tile.alpha_composite(ti, (30 + ic.width + 16, (h - ti.height) // 2))
+        nx = 30 + ic.width + 16 + ti.width + 22 + 35
+        tile.alpha_composite(num, (int(nx - num.width / 2), int((h - num.height) / 2)))
+        return tile
+
+    def draw(self, layer, f, ctx):
+        self._k = self.start + f
+        super().draw(layer, f, ctx)
+
+
 class ProgressPanel(Element):
     """Панель «иконка + подпись + полоса прогресса» (по мотивам референса).
     Полоса заполняется от fill_from до fill_to (абсолютные кадры)."""
 
     def __init__(self, start, dur, label, icon="heat", xy=(540, 420), fill_from=None, fill_to=None,
-                 width=640):
+                 width=640, values=None):
         self.start, self.dur, self.label, self.icon, self.xy = start, dur, label, icon, xy
         self.fill_from = start + 8 if fill_from is None else fill_from
         self.fill_to = start + dur - 6 if fill_to is None else fill_to
         self.width = width
+        self.values = values  # вместо процентов — подписи по ходу заполнения («1 МЕС» … «1 ГОД»)
         self.sfx = ("pop", 0)
         self.shadow_kw = {"radius": 16, "opacity": 0.35}
 
@@ -394,7 +442,12 @@ class ProgressPanel(Element):
         d.rounded_rectangle([x0, y0, x1, y0 + 16], radius=8, fill=LIGHT_GRAY + (255,))
         if p > 0:
             d.rounded_rectangle([x0, y0, x0 + max(16, (x1 - x0) * p), y0 + 16], radius=8, fill=INK + (255,))
-        pc = text_image(f"{int(round(p * 100))}%", "mont800", 34, INK)
+        if self.values:
+            txt = self.values[min(len(self.values) - 1, int(p * len(self.values) - 1e-6))] if p > 0 \
+                else self.values[0]
+        else:
+            txt = f"{int(round(p * 100))}%"
+        pc = text_image(txt, "mont800", 34, INK)
         panel.alpha_composite(pc, (w - 30 - pc.width, y0 + 8 - pc.height // 2))
         sc = _pop(f) * (1 - 0.3 * ease_in_out((f - (self.dur - 5)) / 5))
         al = clamp01(f / 3) * (1 - ease_in_out((f - (self.dur - 5)) / 5))
