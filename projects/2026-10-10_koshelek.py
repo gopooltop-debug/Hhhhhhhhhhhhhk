@@ -127,9 +127,10 @@ f_open = segs[4].out_start
 # раскрытие интриги: «6 ЧАСОВ» сразу целиком, без поэтапного набегания часов
 stat = kn.TimeStat(f_open + 3, segs[4].length + 20, 6, xy=(540, 400), count=False)
 elements = [
-    kn.WipeBar(cut_b, color=kn.INK),
     # «столько часов»: «?» над кошельком, куда вы показываете (координаты исходника)
     kn.QuestionMark(out_of(14.85), cut_b - out_of(14.85) + 2, (290, 500), r=125),
+    # шторка поверх «?» — знак уходит вместе с планом
+    kn.WipeBar(cut_b, color=kn.INK),
     # раскрываете кошелёк — ответ
     stat,
     kn.KineticWords(groups, y=960, accent_color=kn.INK),
