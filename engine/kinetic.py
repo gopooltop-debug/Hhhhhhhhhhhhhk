@@ -406,6 +406,83 @@ class CounterChip(Chip):
         super().draw(layer, f, ctx)
 
 
+class QuestionMark(Element):
+    """Знак «?» в белом круге, выскакивает с пружинкой и слегка покачивается.
+    src_point — точка в координатах исходника (едет вместе с зумом плана)."""
+
+    def __init__(self, start, dur, src_point, r=110, dark=False):
+        self.start, self.dur, self.src_point, self.r, self.dark = start, dur, src_point, r, dark
+        self.sfx = ("pop", 0)
+        self.shadow_kw = {"radius": 18, "opacity": 0.35}
+        bg, fg = (INK, (255, 255, 255)) if dark else (WHITE, INK)
+        d = 2 * r
+        self.img = Image.new("RGBA", (d + 8, d + 8), (0, 0, 0, 0))
+        ImageDraw.Draw(self.img).ellipse([4, 4, d + 3, d + 3], fill=bg + (250,))
+        q = text_image("?", "mont900", int(r * 1.45), fg)
+        self.img.alpha_composite(q, ((d + 8 - q.width) // 2, (d + 8 - q.height) // 2 + 2))
+
+    def draw(self, layer, f, ctx):
+        x, y = ctx["map"](self.src_point) if ctx.get("map") else self.src_point
+        sc = _pop(f, 10) * (1 - 0.5 * ease_in_out((f - (self.dur - 6)) / 6))
+        al = clamp01(f / 3) * (1 - ease_in_out((f - (self.dur - 6)) / 6))
+        ang = 7 * math.sin(f / 30 * 2 * math.pi * 0.9) * min(1, f / 10)
+        bob = 8 * math.sin(f / 30 * 2 * math.pi * 0.6)
+        im = self.img.resize((max(1, int(self.img.width * sc)), max(1, int(self.img.height * sc))),
+                             Image.LANCZOS).rotate(ang, resample=Image.BICUBIC, expand=True)
+        paste_center(layer, im, x, y + bob, al)
+
+
+def hours_word(n):
+    n10, n100 = n % 10, n % 100
+    if n10 == 1 and n100 != 11:
+        return "ЧАС"
+    if 2 <= n10 <= 4 and not 12 <= n100 <= 14:
+        return "ЧАСА"
+    return "ЧАСОВ"
+
+
+class TimeStat(Element):
+    """Плитка «иконка часов + крупное число + ЧАСОВ»: число набегает 1 → value."""
+
+    def __init__(self, start, dur, value, xy=(540, 400), count_frames=16):
+        self.start, self.dur, self.value, self.xy = start, dur, value, xy
+        self.count_frames = count_frames
+        self.sfx = ("pop", 0)
+        self.shadow_kw = {"radius": 18, "opacity": 0.35}
+
+    def tick_frames(self):
+        return [self.start + 4 + round(self.count_frames * (i - 1) / max(1, self.value - 1))
+                for i in range(2, self.value + 1)]
+
+    def draw(self, layer, f, ctx):
+        ticks = [self.start + 4] + self.tick_frames()
+        k = self.start + f
+        n, since = 1, ticks[0]
+        for i, tk in enumerate(ticks, 1):
+            if k >= tk:
+                n, since = i, tk
+        num = text_image(str(n), "mont900", 190, INK)
+        nsc = _pop(k - since, 6) if k >= ticks[0] else 1.0
+        num = num.resize((max(1, int(num.width * nsc)), max(1, int(num.height * nsc))), Image.LANCZOS)
+        lab = text_image(hours_word(n), "mont900", 84, INK, spacing=2)
+        lab_w = text_image("ЧАСОВ", "mont900", 84, INK, spacing=2).width
+        h = 250
+        w = 40 + 120 + 36 + 150 + 30 + lab_w + 50
+        tile = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        ImageDraw.Draw(tile).rounded_rectangle([0, 0, w - 1, h - 1], radius=48, fill=WHITE + (248,))
+        it = Image.new("RGBA", (120, 120), (0, 0, 0, 0))
+        ImageDraw.Draw(it).rounded_rectangle([0, 0, 119, 119], radius=28, fill=INK + (255,))
+        it.alpha_composite(_icon("clock", 92, (255, 255, 255)), (14, 14))
+        tile.alpha_composite(it, (40, (h - 120) // 2))
+        nx = 40 + 120 + 36 + 75
+        tile.alpha_composite(num, (int(nx - num.width / 2), int((h - num.height) / 2)))
+        tile.alpha_composite(lab, (40 + 120 + 36 + 150 + 30, (h - lab.height) // 2))
+        sc = _pop(f, 10) * (1 - 0.4 * ease_in_out((f - (self.dur - 6)) / 6))
+        al = clamp01(f / 3) * (1 - ease_in_out((f - (self.dur - 6)) / 6))
+        tile = tile.resize((max(1, int(w * sc)), max(1, int(h * sc))), Image.LANCZOS)
+        paste_center(layer, tile, self.xy[0], self.xy[1], al)
+
+
 class ProgressPanel(Element):
     """Панель «иконка + подпись + полоса прогресса» (по мотивам референса).
     Полоса заполняется от fill_from до fill_to (абсолютные кадры)."""
