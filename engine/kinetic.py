@@ -444,25 +444,28 @@ def hours_word(n):
 class TimeStat(Element):
     """Плитка «иконка часов + крупное число + ЧАСОВ»: число набегает 1 → value."""
 
-    def __init__(self, start, dur, value, xy=(540, 400), count_frames=16):
+    def __init__(self, start, dur, value, xy=(540, 400), count_frames=16, count=True):
         self.start, self.dur, self.value, self.xy = start, dur, value, xy
         self.count_frames = count_frames
+        self.count = count  # False — число сразу целиком (раскрытие интриги, без набегания)
         self.sfx = ("pop", 0)
         self.shadow_kw = {"radius": 18, "opacity": 0.35}
 
     def tick_frames(self):
+        if not self.count:
+            return []
         return [self.start + 4 + round(self.count_frames * (i - 1) / max(1, self.value - 1))
                 for i in range(2, self.value + 1)]
 
     def draw(self, layer, f, ctx):
         ticks = [self.start + 4] + self.tick_frames()
         k = self.start + f
-        n, since = 1, ticks[0]
-        for i, tk in enumerate(ticks, 1):
+        n, since = (1, ticks[0]) if self.count else (self.value, self.start)
+        for i, tk in enumerate(ticks if self.count else [], 1):
             if k >= tk:
                 n, since = i, tk
         num = text_image(str(n), "mont900", 190, INK)
-        nsc = _pop(k - since, 6) if k >= ticks[0] else 1.0
+        nsc = (_pop(k - since, 6) if k >= ticks[0] else 1.0) if self.count else 1.0
         num = num.resize((max(1, int(num.width * nsc)), max(1, int(num.height * nsc))), Image.LANCZOS)
         lab = text_image(hours_word(n), "mont900", 84, INK, spacing=2)
         lab_w = text_image("ЧАСОВ", "mont900", 84, INK, spacing=2).width
