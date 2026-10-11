@@ -486,6 +486,35 @@ class TimeStat(Element):
         paste_center(layer, tile, self.xy[0], self.xy[1], al)
 
 
+class CommentBubble(Element):
+    """Плашка-комментарий: аватар-кружок, «комментарий» мелко, текст комментария."""
+
+    def __init__(self, start, dur, text, xy=(540, 380), who="зритель"):
+        self.start, self.dur, self.text, self.xy, self.who = start, dur, text, xy, who
+        self.sfx = ("pop", 0)
+        self.shadow_kw = {"radius": 18, "opacity": 0.35}
+        t = text_image(text, "mont800", 46, INK)
+        n = text_image(who, "mont600", 30, (120, 116, 110))
+        w = 40 + 84 + 26 + max(t.width, n.width) + 50
+        h = 190
+        im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+        d.rounded_rectangle([0, 0, w - 1, h - 1], radius=40, fill=WHITE + (250,))
+        d.ellipse([40, (h - 84) // 2, 124, (h + 84) // 2], fill=INK + (255,))
+        ic = text_image("?", "mont900", 52, (255, 255, 255))
+        im.alpha_composite(ic, (82 - ic.width // 2, h // 2 - ic.height // 2))
+        im.alpha_composite(n, (150, 40))
+        im.alpha_composite(t, (150, 40 + n.height + 8))
+        self.img = im
+
+    def draw(self, layer, f, ctx):
+        sc = _pop(f, 9) * (1 - 0.4 * ease_in_out((f - (self.dur - 5)) / 5))
+        al = clamp01(f / 3) * (1 - ease_in_out((f - (self.dur - 5)) / 5))
+        im = self.img.resize((max(1, int(self.img.width * sc)), max(1, int(self.img.height * sc))),
+                             Image.LANCZOS)
+        paste_center(layer, im, self.xy[0], self.xy[1] + 16 * (1 - ease_out(f / 8)), al)
+
+
 class ProgressPanel(Element):
     """Панель «иконка + подпись + полоса прогресса» (по мотивам референса).
     Полоса заполняется от fill_from до fill_to (абсолютные кадры)."""
