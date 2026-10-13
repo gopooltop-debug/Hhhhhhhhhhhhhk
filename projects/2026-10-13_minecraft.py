@@ -23,7 +23,13 @@ SRC_DIR = sys.argv[1] if len(sys.argv) > 1 else "."
 OUT_DIR = sys.argv[2] if len(sys.argv) > 2 else "output"
 INTRO = os.path.join(SRC_DIR, "intro.mp4")
 MAIN = os.path.join(SRC_DIR, "main2.mp4")
-NAME = "2026-10-13_майнкрафт_v1"
+REF = os.path.join(SRC_DIR, "ref.mp4")   # референс: берём из него звук перехода
+# звук референса: в нём музыка вступает, когда открывается «окно» (14,5 с); ставим этот момент на T_GREEN.
+# держим до REF_HOLD с ролика, потом переход в музыку из main2
+REF_IN = 14.40
+REF_HOLD = 10.0
+REF_XF = 0.6
+NAME = "2026-10-13_майнкрафт_v2"
 CAPTION = "Лучший переход 💀😂"
 
 W, H, FPS = 1080, 1920, 30
@@ -128,14 +134,22 @@ def main():
     fo = int(0.25 * m.SR)
     a_intro[-fo:] *= np.linspace(1, 0, fo)
     mix[:len(a_intro)] += a_intro
+    # звук из референса — от открытия блока до REF_HOLD
+    t_ref0 = T_GREEN - (14.50 - REF_IN)
+    a_ref = pcm(REF, REF_IN)[:int((REF_HOLD - t_ref0) * m.SR)]
+    xf = int(REF_XF * m.SR)
+    a_ref[-xf:] *= np.linspace(1, 0, xf)
+    a_ref[:int(0.05 * m.SR)] *= np.linspace(0, 1, int(0.05 * m.SR))
+    o = int(t_ref0 * m.SR)
+    mix[o:o + len(a_ref)] += a_ref * 1.6
+    # музыка из main2 — вступает под конец звука референса и играет до конца
     a_main = pcm(MAIN)
-    fi = int(0.12 * m.SR)
-    a_main[:fi] *= np.linspace(0, 1, fi)
     o = k_main0 * spf
-    mix[o:o + len(a_main)] += a_main[:len(mix) - o]
-    wh = m.SFX["whoosh"]() * 2.0
-    o = round(T_ZOOM0 * FPS) * spf
-    mix[o:o + len(wh)] += wh
+    env = np.zeros(len(a_main))
+    i0 = int((REF_HOLD - REF_XF - T_GREEN) * m.SR)
+    env[i0:i0 + xf] = np.linspace(0, 1, xf)
+    env[i0 + xf:] = 1
+    mix[o:o + len(a_main)] += (a_main * env)[:len(mix) - o]
     mix = mix[:total * spf].astype(np.float32)
     m.write_wav(os.path.join(work, "mc_pre.wav"), mix)
     m.loudnorm(os.path.join(work, "mc_pre.wav"), os.path.join(work, "mc.wav"))
