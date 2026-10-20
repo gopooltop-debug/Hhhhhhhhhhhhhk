@@ -109,7 +109,7 @@ def build():
     sc.cycles.transparent_max_bounces = 0
     sc.cycles.caustics_reflective = False
     sc.cycles.caustics_refractive = False
-    sc.render.use_persistent_data = True
+    sc.render.use_persistent_data = False   # с True после ~100 кадров кожа рендерится чёрной
     sc.render.resolution_x, sc.render.resolution_y = W, H
     sc.render.image_settings.file_format = "PNG"
     try:
