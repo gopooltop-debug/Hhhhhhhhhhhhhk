@@ -264,6 +264,7 @@ def build():
         ld.size = size
         ld.color = color
         ob = bpy.data.objects.new(name, ld)
+        ob.visible_camera = False   # обратная сторона плоской лампы в кадре — чёрная полоса
         sc.collection.objects.link(ob)
         return ob
 
@@ -538,8 +539,15 @@ def compose(ref):
         if f.shape[:2] != (H, W):
             f = cv2.resize(f, (W, H), interpolation=cv2.INTER_LANCZOS4)
         f = f.astype(np.float32) / 255
-        glow = cv2.GaussianBlur(np.clip(f - 0.55, 0, 1), (0, 0), 24)
-        f = f + glow * 0.5                                   # свечение светов, как в рендере референса
+        if 11.28 <= t < LOGO_T:
+            # студия: фон серый, а не белый — прижимаем света, края темнее (как в референсе)
+            f = np.where(f < 0.5, f, 0.5 + (f - 0.5) * 0.5)
+            yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+            d = ((xx - W * 0.5) / (W * 0.75)) ** 2 + ((yy - H * 0.36) / (H * 0.62)) ** 2
+            f = f * (1 - 0.45 * np.clip(d, 0, 1) ** 1.2)[..., None]
+        else:
+            glow = cv2.GaussianBlur(np.clip(f - 0.55, 0, 1), (0, 0), 24)
+            f = f + glow * 0.5                               # свечение светов, как в рендере референса
         f = v3.overlay(f, v3.text_layer(t))
         enc.stdin.write(np.clip(f * 255, 0, 255).astype(np.uint8).tobytes())
     enc.stdin.close()
