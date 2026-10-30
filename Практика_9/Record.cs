@@ -7,12 +7,6 @@ namespace Практика_9
     // Имя, дата рождения, должность, отдел, оклад.
     public class Record
     {
-        // Разделитель полей записи в текстовом файле.
-        public const char Separator = '#';
-
-        // Формат даты в файле не зависит от настроек Windows.
-        const string DateFormat = "dd.MM.yyyy";
-
         public string Name { get; set; }
         public DateTime BirthDate { get; set; }
         public string Profession { get; set; }
@@ -52,37 +46,6 @@ namespace Практика_9
                 Name, BirthDate, Profession, Department, Money);
         }
 
-        // Строка для записи в файл: поля через разделитель #.
-        public string ToFileString()
-        {
-            return string.Join(Separator.ToString(),
-                Name,
-                BirthDate.ToString(DateFormat, CultureInfo.InvariantCulture),
-                Profession,
-                Department,
-                Money.ToString(CultureInfo.InvariantCulture));
-        }
-
-        // Разбор строки файла в запись. При ошибке формата бросает FormatException.
-        public static Record Parse(string record)
-        {
-            string[] fields = record.Split(Separator);
-            if (fields.Length != 5)
-                throw new FormatException("Ожидалось 5 полей, получено " + fields.Length);
-
-            DateTime birthDate;
-            if (!DateTime.TryParseExact(fields[1].Trim(), DateFormat, CultureInfo.InvariantCulture,
-                    DateTimeStyles.None, out birthDate))
-                throw new FormatException("Неверная дата: " + fields[1]);
-
-            double money;
-            if (!TryParseMoney(fields[4], out money))
-                throw new FormatException("Неверный оклад: " + fields[4]);
-
-            Record Tmp = new Record(fields[0].Trim(), birthDate, fields[2].Trim(), fields[3].Trim(), money);
-            return Tmp;
-        }
-
         // Оклад можно вводить и через точку, и через запятую, с пробелами между разрядами.
         public static bool TryParseMoney(string text, out double money)
         {
@@ -103,8 +66,6 @@ namespace Практика_9
             if (empty != "")
                 return "Не заполнены поля:" + empty;
 
-            if ((name + profession).IndexOf(Separator) >= 0)
-                return "Символ «" + Separator + "» нельзя использовать в тексте: он разделяет поля в файле.";
             if (!TryParseMoney(moneyText, out money))
                 return "Оклад должен быть числом, например 45000 или 45000,50.";
             if (money < 0)
