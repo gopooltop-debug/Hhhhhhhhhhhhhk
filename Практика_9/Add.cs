@@ -4,14 +4,14 @@ using System.Windows.Forms;
 namespace Практика_9
 {
     // Окно диалога «Добавить»: ввод новой записи с проверкой полей.
-    public partial class DialogAdd : Form
+    public partial class Add : Form
     {
-        public DialogAdd()
+        public Add()
         {
             InitializeComponent();
         }
 
-        private void DialogAdd_Load(object sender, EventArgs e)
+        private void Add_Load(object sender, EventArgs e)
         {
             dateTimePicker1.MaxDate = DateTime.Today;
             dateTimePicker1.Value = DateTime.Today.AddYears(-25);

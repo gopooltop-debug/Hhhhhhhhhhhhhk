@@ -1,6 +1,6 @@
 ﻿namespace Практика_9
 {
-    partial class DialogAdd
+    partial class Add
     {
         /// <summary>
         /// Обязательная переменная конструктора.
@@ -125,11 +125,12 @@
             this.listBox1.Items.AddRange(new object[] {
             "Администрация",
             "Бухгалтерия",
+            "ЖКХ",
+            "ИТ-отдел",
             "Отдел кадров",
             "Отдел продаж",
-            "ИТ-отдел",
-            "Производство",
-            "Склад"});
+            "Цирк",
+            "Школа"});
             this.listBox1.Location = new System.Drawing.Point(124, 144);
             this.listBox1.Name = "listBox1";
             this.listBox1.Size = new System.Drawing.Size(190, 82);
@@ -157,7 +158,7 @@
             this.buttonCancel.UseVisualStyleBackColor = true;
             this.buttonCancel.Click += new System.EventHandler(this.buttonCancel_Click);
             // 
-            // DialogAdd
+            // Add
             // 
             this.AcceptButton = this.buttonOK;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -179,12 +180,12 @@
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.Name = "DialogAdd";
+            this.Name = "Add";
             this.ShowIcon = false;
             this.ShowInTaskbar = false;
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Добавить";
-            this.Load += new System.EventHandler(this.DialogAdd_Load);
+            this.Load += new System.EventHandler(this.Add_Load);
             this.ResumeLayout(false);
             this.PerformLayout();
 

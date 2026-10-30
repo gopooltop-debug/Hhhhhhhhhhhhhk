@@ -8,18 +8,17 @@ namespace Практика_9
 {
     public partial class Form1 : Form
     {
-        // Вся таблица: список записей. Для начала инициализирован данными 5 строк.
-        List<Record> Table = new List<Record>
-        {
-            new Record("Иванов Иван Иванович", new DateTime(1985, 3, 12), "Главный бухгалтер", "Бухгалтерия", 85000),
-            new Record("Петрова Анна Сергеевна", new DateTime(1992, 8, 27), "Менеджер по продажам", "Отдел продаж", 62000),
-            new Record("Сидоров Павел Андреевич", new DateTime(1978, 11, 5), "Директор", "Администрация", 150000),
-            new Record("Кузнецова Мария Олеговна", new DateTime(1999, 1, 19), "Специалист по кадрам", "Отдел кадров", 48500.5),
-            new Record("Смирнов Алексей Викторович", new DateTime(1988, 6, 30), "Программист", "ИТ-отдел", 120000)
-        };
-
         // Для передачи записи между основной формой и окнами диалога.
         static public Record Rec;
+
+        // Вся таблица: список записей. Для начала инициализирован данными 5 строк.
+        List <Record> Table = new List <Record>()
+        {   new Record("Максим Савинков", new DateTime(2003, 10, 22), "Клоун", "Цирк", 50000),
+            new Record("Илья Клюшин", new DateTime(2004, 2, 10), "Сантехник", "ЖКХ", 40000),
+            new Record("Иван Иванов", new DateTime(1990, 5, 15), "Инженер", "ИТ-отдел", 80000),
+            new Record("Петр Петров", new DateTime(1985, 10, 10), "Директор", "Администрация", 150000),
+            new Record("Анна Анненкова", new DateTime(1978, 7, 2), "Учитель", "Школа", 45000)
+        };
 
         // Состояния таблицы до каждого изменения — для «Отмены действия».
         Stack<List<Record>> undoStack = new Stack<List<Record>>();
@@ -33,8 +32,6 @@ namespace Практика_9
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            dataGridView1.AutoGenerateColumns = true;
-            dataGridView1.DataSource = Table;
             Redraw();
         }
 
@@ -150,7 +147,7 @@ namespace Практика_9
 
         private void добавитьToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            DialogAdd Dialog = new DialogAdd();
+            Add Dialog = new Add();
             // Показать диалог.
             if (Dialog.ShowDialog(this) == DialogResult.OK)
             {
@@ -167,7 +164,7 @@ namespace Практика_9
                 return;
             // Извлечь в переменную static public Record Rec и передать в диалог.
             Rec = Table[current];
-            DialogEdit Dialog = new DialogEdit();
+            Change Dialog = new Change();
             // Если DialogResult вернул запись, то изменённую запись вставить в таблицу по положению current.
             if (Dialog.ShowDialog(this) == DialogResult.OK)
             {

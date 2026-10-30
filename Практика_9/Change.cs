@@ -4,14 +4,14 @@ using System.Windows.Forms;
 namespace Практика_9
 {
     // Окно диалога «Изменить»: в полях показана текущая запись, полученная с основной формы.
-    public partial class DialogEdit : Form
+    public partial class Change : Form
     {
-        public DialogEdit()
+        public Change()
         {
             InitializeComponent();
         }
 
-        private void DialogEdit_Load(object sender, EventArgs e)
+        private void Change_Load(object sender, EventArgs e)
         {
             dateTimePicker1.MaxDate = DateTime.Today;
 
