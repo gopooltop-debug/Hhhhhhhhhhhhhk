@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Лунный альманах</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: ночной альманах. Слева большая Луна, справа её паспорт; ниже календарь месяца и полнолуния в масштабе. Один тёмный вид по замыслу. */
+:root {
+  --night: #0c1018;     /* фон */
+  --deep: #131a26;      /* панели */
+  --rule: #273246;      /* линейки */
+  --silver: #dfe1e4;    /* основной текст */
+  --dim: #8d97a8;       /* второстепенный */
+  --lamp: #e3c886;      /* старое золото альманаха */
+  --lamp-ink: #1a1408;  /* текст на золоте */
+
+  --f-display: "Old Standard TT", "Times New Roman", Georgia, serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--night);
+  color: var(--silver);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.55;
+}
+.page {
+  max-width: 1120px;
+  margin-inline: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+  overflow-x: clip;
+  display: grid;
+  gap: 56px;
+}
+:focus-visible { outline: 2px solid var(--lamp); outline-offset: 3px; }
+h1, h2, h3 { margin: 0; font-weight: 400; text-wrap: balance; }
+p { margin: 0; }
+.label {
+  font-family: var(--f-data);
+  font-size: .72rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.num { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
+
+/* Шапка */
+.mast {
+  display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 24px;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 14px;
+}
+.mast h1 { font-family: var(--f-display); font-size: 1.6rem; letter-spacing: .02em; }
+.mast h1 i { color: var(--lamp); }
+
+/* Главный блок */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: clamp(24px, 5vw, 64px);
+  align-items: center;
+}
+.moon-wrap {
+  position: relative;
+  aspect-ratio: 1;
+  width: 100%;
+  max-width: 480px;
+  justify-self: center;
+}
+.moon-wrap::before {
+  content: "";
+  position: absolute; inset: -12%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(227, 220, 200, var(--glow, .12)), transparent 72%);
+  pointer-events: none;
+}
+.moon-wrap canvas { position: relative; width: 100%; height: 100%; display: block; transition: transform .6s ease; }
+.south canvas.moon { transform: rotate(180deg); }
+
+.passport { display: grid; gap: 22px; min-width: 0; }
+.when { display: grid; gap: 4px; }
+.when .date { font-family: var(--f-display); font-size: 1.15rem; color: var(--dim); }
+.phase-name {
+  font-family: var(--f-display);
+  font-size: clamp(2.4rem, 6vw, 4.2rem);
+  line-height: 1;
+}
+.rule-hint {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 14px;
+  background: var(--deep);
+  border-left: 2px solid var(--lamp);
+  max-width: 30em;
+}
+.rule-hint b {
+  font-family: var(--f-display); font-weight: 700; font-size: 2.2rem; line-height: 1;
+  color: var(--lamp); width: 1.1em; text-align: center; flex: none;
+}
+.rule-hint span { color: var(--dim); font-size: .9rem; }
+
+.readouts {
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--rule);
+}
+.readouts div { display: grid; gap: 2px; padding: 14px 0; border-bottom: 1px solid var(--rule); }
+.readouts div:nth-child(odd) { padding-right: 16px; }
+.readouts div:nth-child(even) { padding-left: 16px; border-left: 1px solid var(--rule); }
+.readouts .num { font-size: 1.45rem; color: var(--silver); }
+.readouts .num small { font-size: .7em; color: var(--dim); margin-left: .2em; }
+
+/* Управление */
+.controls { display: grid; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button, .seg label {
+  font: 500 .82rem var(--f-body);
+  color: var(--silver);
+  background: transparent;
+  border: 1px solid var(--rule);
+  padding: .55em .9em;
+  cursor: pointer;
+  border-radius: 2px;
+}
+button:hover, .seg label:hover { border-color: var(--dim); }
+button.primary { background: var(--lamp); color: var(--lamp-ink); border-color: var(--lamp); }
+.seg { display: inline-flex; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label + input + label { border-left: 0; }
+.seg input:checked + label { background: var(--silver); color: var(--night); border-color: var(--silver); }
+.seg input:focus-visible + label { outline: 2px solid var(--lamp); outline-offset: 2px; }
+input[type="range"] { width: 100%; accent-color: var(--lamp); }
+.range-ends { display: flex; justify-content: space-between; }
+
+/* Разделы */
+.section { display: grid; gap: 20px; }
+.section-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 24px; }
+.section-head h2 { font-family: var(--f-display); font-size: clamp(1.5rem, 3vw, 2rem); }
+.section-head p { color: var(--dim); max-width: 36em; }
+
+/* Календарь */
+.cal-nav { display: flex; gap: 8px; align-items: center; }
+.cal-nav .m { font-family: var(--f-display); font-size: 1.2rem; min-width: 9em; text-align: center; }
+.cal {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-top: 1px solid var(--rule); border-left: 1px solid var(--rule);
+}
+.cal .dow { padding: 8px; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); text-align: center; }
+.cal .day {
+  position: relative;
+  display: grid; justify-items: center; gap: 4px;
+  padding: 8px 4px 10px;
+  border: 0; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  background: transparent;
+  min-width: 0;
+}
+.cal .day:hover { background: var(--deep); }
+.cal .day .d { font-family: var(--f-data); font-size: .78rem; color: var(--dim); justify-self: start; padding-left: 4px; }
+.cal .day canvas { width: min(34px, 80%); aspect-ratio: 1; height: auto; }
+.south .cal .day canvas { transform: rotate(180deg); }
+.cal .day.out { visibility: hidden; }
+.cal .day.today .d { color: var(--lamp); }
+.cal .day.sel { background: var(--deep); box-shadow: inset 0 0 0 1px var(--lamp); }
+.cal .day .ev {
+  font-family: var(--f-data); font-size: .62rem; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--lamp); min-height: 1.2em; text-align: center; line-height: 1.2;
+}
+
+/* Ближайшие фазы */
+.events { width: 100%; border-collapse: collapse; }
+.events th { text-align: left; font-weight: 400; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule); }
+.events td { padding: 12px 12px 12px 0; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+.events td:first-child { font-family: var(--f-display); font-size: 1.1rem; white-space: nowrap; }
+.events .glyph { display: inline-block; width: 14px; height: 14px; border-radius: 50%; margin-right: 10px; vertical-align: -1px; border: 1px solid var(--silver); }
+.g0 { background: transparent; }
+.g1 { background: linear-gradient(90deg, transparent 50%, var(--silver) 50%); }
+.g2 { background: var(--silver); }
+.g3 { background: linear-gradient(90deg, var(--silver) 50%, transparent 50%); }
+.south .g1 { background: linear-gradient(90deg, var(--silver) 50%, transparent 50%); }
+.south .g3 { background: linear-gradient(90deg, transparent 50%, var(--silver) 50%); }
+.events td.r { text-align: right; padding-right: 0; color: var(--dim); }
+.tbl { overflow-x: auto; }
+
+/* Полнолуния в масштабе */
+.fulls {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 24px 12px; align-items: end;
+}
+.full { display: grid; justify-items: center; gap: 8px; text-align: center; }
+.full .disc {
+  border-radius: 50%;
+  background: radial-gradient(circle at 42% 40%, #f2efe6, #c9c4b6 70%, #a9a495);
+}
+.full.super .disc { box-shadow: 0 0 0 2px var(--night), 0 0 0 3px var(--lamp); }
+.full .t { font-size: .85rem; }
+.full .k { font-size: .72rem; color: var(--dim); }
+.full .tag { font-family: var(--f-data); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--lamp); min-height: 1.2em; }
+
+.foot { color: var(--dim); font-size: .82rem; border-top: 1px solid var(--rule); padding-top: 16px; max-width: 60em; }
+
+@media (max-width: 820px) {
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .moon-wrap { max-width: 360px; }
+}
+@media (max-width: 480px) {
+  .cal .dow { padding: 6px 0; font-size: .62rem; letter-spacing: .04em; }
+  .cal .day .ev { font-size: .5rem; }
+  .readouts .num { font-size: 1.2rem; }
+  .events .hide-s { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .moon-wrap canvas { transition: none; } }
+</style>
+
+<div class="page" id="app">
+  <header class="mast">
+    <h1>Лунный <i>альманах</i></h1>
+    <span class="label" id="tz">Время вашего устройства</span>
+  </header>
+
+  <section class="hero">
+    <div class="moon-wrap" id="moonWrap">
+      <canvas class="moon" id="moon" role="img" aria-label="Луна"></canvas>
+    </div>
+
+    <div class="passport">
+      <div class="when">
+        <span class="date" id="date">—</span>
+        <h2 class="phase-name" id="phase">—</h2>
+      </div>
+
+      <div class="rule-hint" id="hint"><b id="hintLetter">Р</b><span id="hintText">—</span></div>
+
+      <div class="readouts">
+        <div><span class="label">Освещено</span><span class="num" id="illum">—</span></div>
+        <div><span class="label">Возраст Луны</span><span class="num" id="age">—</span></div>
+        <div><span class="label">До Земли</span><span class="num" id="dist">—</span></div>
+        <div><span class="label">Видимый диаметр</span><span class="num" id="diam">—</span></div>
+      </div>
+
+      <div class="controls">
+        <input type="range" id="day" min="-366" max="366" step="1" value="0" aria-label="Сдвиг даты в днях">
+        <div class="range-ends label"><span>год назад</span><span>через год</span></div>
+        <div class="row">
+          <button id="prev" type="button">− 1 день</button>
+          <button id="today" type="button" class="primary">Сегодня</button>
+          <button id="next" type="button">+ 1 день</button>
+          <span class="seg" role="radiogroup" aria-label="Полушарие">
+            <input type="radio" name="hemi" id="hemiN" value="n" checked><label for="hemiN">Север</label>
+            <input type="radio" name="hemi" id="hemiS" value="s"><label for="hemiS">Юг</label>
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>Месяц по дням</h2>
+      <div class="cal-nav">
+        <button id="mPrev" type="button" aria-label="Предыдущий месяц">←</button>
+        <span class="m" id="mName">—</span>
+        <button id="mNext" type="button" aria-label="Следующий месяц">→</button>
+      </div>
+    </div>
+    <div class="cal" id="cal"></div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>Ближайшие фазы</h2>
+      <p>Главные фазы после выбранной даты. Время указано по часам вашего устройства.</p>
+    </div>
+    <div class="tbl">
+      <table class="events">
+        <thead><tr><th class="label">Фаза</th><th class="label">Дата</th><th class="label">Время</th><th class="label hide-s" style="text-align:right">До Земли</th></tr></thead>
+        <tbody id="events"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>Полнолуния года в масштабе</h2>
+      <p>Диски нарисованы в одном масштабе по видимому диаметру. Ближе к Земле — крупнее. Обводка отмечает суперлуние: ближе 360 000 км.</p>
+    </div>
+    <div class="fulls" id="fulls"></div>
+  </section>
+
+  <p class="foot">Положения Луны и Солнца считаются прямо в браузере по сокращённым рядам из «Астрономических алгоритмов» Жана Меёса. Моменты фаз точны примерно до получаса, освещённость до процента. Рисунок морей и кратеров условный.</p>
+</div>
+
+<script>
+(() => {
+  const RAD = Math.PI / 180;
+  const DAY = 86400000;
+  const SYN = 12.190749; // средняя скорость роста элонгации, °/сутки
+  const norm = a => ((a % 360) + 360) % 360;
+  const sdiff = a => norm(a + 180) - 180;
+
+  // [D, M, M', F, Σl, Σr] — Меёс, табл. 47.A
+  const TERMS = [
+    [0,0,1,0,6288774,-20905355],[2,0,-1,0,1274027,-3699111],[2,0,0,0,658314,-2955968],
+    [0,0,2,0,213618,-569925],[0,1,0,0,-185116,48888],[0,0,0,2,-114332,-3149],
+    [2,0,-2,0,58793,246158],[2,-1,-1,0,57066,-152138],[2,0,1,0,53322,-170733],
+    [2,-1,0,0,45758,-204586],[0,1,-1,0,-40923,-129620],[1,0,0,0,-34720,108743],
+    [0,1,1,0,-30383,104755],[2,0,0,-2,15327,10321],[0,0,1,2,-12528,0],
+    [0,0,1,-2,10980,79661],[4,0,-1,0,10675,-34782],[0,0,3,0,10034,-23210],
+    [4,0,-2,0,8548,-21636],[2,1,-1,0,-7888,24208],[2,1,0,0,-6766,30824],
+    [1,0,-1,0,-5163,-8379],[1,1,0,0,4987,-16675],[2,-1,1,0,4036,-12831]
+  ];
+
+  function sky(ms) {
+    const T = (ms / DAY + 2440587.5 - 2451545.0) / 36525;
+    const Lp = 218.3164477 + 481267.88123421 * T;
+    const D = 297.8501921 + 445267.1114034 * T;
+    const M = 357.5291092 + 35999.0502909 * T;
+    const Mp = 134.9633964 + 477198.8675055 * T;
+    const F = 93.2720950 + 483202.0175233 * T;
+    const E = 1 - 0.002516 * T;
+    let sl = 0, sr = 0;
+    for (const [d, m, mp, f, l, r] of TERMS) {
+      const a = (d * D + m * M + mp * Mp + f * F) * RAD;
+      const e = m === 0 ? 1 : Math.pow(E, Math.abs(m));
+      sl += l * e * Math.sin(a);
+      sr += r * e * Math.cos(a);
+    }
+    const A1 = 119.75 + 131.849 * T, A2 = 53.09 + 479264.29 * T;
+    sl += 3958 * Math.sin(A1 * RAD) + 1962 * Math.sin((Lp - F) * RAD) + 318 * Math.sin(A2 * RAD);
+    const lamMoon = Lp + sl / 1e6;
+    const dist = 385000.56 + sr / 1000;
+    const L0 = 280.46646 + 36000.76983 * T + 0.0003032 * T * T;
+    const C = (1.914602 - 0.004817 * T) * Math.sin(M * RAD) + 0.019993 * Math.sin(2 * M * RAD) + 0.000289 * Math.sin(3 * M * RAD);
+    const lamSun = L0 + C - 0.00569;
+    const psi = norm(lamMoon - lamSun);
+    return { psi, illum: (1 - Math.cos(psi * RAD)) / 2, dist, diam: 2 * Math.atan(1737.4 / dist) / RAD * 60 };
+  }
+
+  // Момент, когда элонгация равна target: ищем вперёд (dir = 1) или назад (dir = −1)
+  function findPhase(ms, target, dir = 1) {
+    const ahead = dir > 0 ? norm(target - sky(ms).psi) : -norm(sky(ms).psi - target);
+    let t = ms + ahead / SYN * DAY;
+    for (let i = 0; i < 8; i++) t -= sdiff(sky(t).psi - target) / SYN * DAY;
+    return t;
+  }
+
+  const PHASES = ["Новолуние", "Первая четверть", "Полнолуние", "Последняя четверть"];
+  function phaseName(psi) {
+    if (psi < 12 || psi >= 348) return "Новолуние";
+    if (psi < 84) return "Растущий серп";
+    if (psi < 96) return "Первая четверть";
+    if (psi < 168) return "Растущая Луна";
+    if (psi < 192) return "Полнолуние";
+    if (psi < 264) return "Убывающая Луна";
+    if (psi < 276) return "Последняя четверть";
+    return "Старый серп";
+  }
+
+  // ── Текстура: условные моря и кратеры, видимая сторона, север сверху ──
+  function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  const rand = rng(7);
+  const G = 64, grid = Array.from({ length: G * G }, rand);
+  const vnoise = (x, y) => {
+    x = (x + 4) * 6; y = (y + 4) * 6;
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+    const h = (i, j) => grid[((j % G + G) % G) * G + ((i % G + G) % G)];
+    const s = t => t * t * (3 - 2 * t);
+    const a = h(xi, yi), b = h(xi + 1, yi), c = h(xi, yi + 1), d = h(xi + 1, yi + 1);
+    return a + (b - a) * s(xf) + (c - a) * s(yf) + (a - b - c + d) * s(xf) * s(yf);
+  };
+  const fbm = (x, y) => { let v = 0, a = .5, f = 1; for (let i = 0; i < 5; i++) { v += a * vnoise(x * f, y * f); f *= 2.03; a *= .5; } return v; };
+  const MARIA = [
+    [-0.56, -0.02, 0.36], [-0.30, -0.44, 0.24], [0.17, -0.38, 0.15], [0.34, -0.08, 0.18],
+    [0.71, -0.30, 0.10], [0.58, 0.12, 0.12], [0.42, 0.28, 0.08], [-0.17, 0.33, 0.15],
+    [-0.54, 0.38, 0.09], [0.00, -0.70, 0.10], [-0.25, -0.68, 0.09], [0.22, -0.66, 0.08]
+  ];
+  const CRATERS = [];
+  for (let i = 0; i < 140; i++) {
+    const r = Math.pow(rand(), 3) * 0.035 + 0.006, a = rand() * Math.PI * 2, d = Math.sqrt(rand()) * 0.97;
+    CRATERS.push([Math.cos(a) * d, Math.sin(a) * d, r]);
+  }
+  const TYCHO = [-0.12, 0.72], COPERNICUS = [-0.30, -0.17];
+
+  function albedoAt(x, y) {
+    let a = 0.6 + 0.16 * (fbm(x, y) - 0.5);
+    let mare = 0;
+    for (const [mx, my, mr] of MARIA) {
+      const warp = (fbm(x * 1.7 + mx * 3, y * 1.7 + my * 3) - 0.5) * 0.35 * mr * 2;
+      const d = Math.hypot(x - mx, y - my) + warp;
+      mare = Math.max(mare, 1 - Math.min(1, Math.max(0, (d - mr * 0.6) / (mr * 0.7))));
+    }
+    a -= mare * 0.22;
+    for (const [cx, cy, cr] of CRATERS) {
+      const d = Math.hypot(x - cx, y - cy) / cr;
+      if (d < 1.2) a += d < 0.85 ? -0.025 * (1 - d) : (d < 1.05 ? 0.035 : 0.01);
+    }
+    for (const [cx, cy, s] of [[...TYCHO, 1], [...COPERNICUS, 0.7]]) {
+      const dx = x - cx, dy = y - cy, d = Math.hypot(dx, dy);
+      const ang = Math.atan2(dy, dx);
+      const ray = Math.pow(Math.max(0, Math.sin(ang * 9 + 1.3) * Math.sin(ang * 5)), 6);
+      a += s * (0.22 * Math.exp(-d * d / 0.0012) + 0.07 * ray * Math.exp(-d / 0.35) * (d > 0.03 ? 1 : 0));
+    }
+    return Math.max(0.2, Math.min(0.95, a));
+  }
+
+  // Рисование диска. textured=false — для маленьких лун в календаре
+  const cache = new Map();
+  function prep(N, textured) {
+    const key = N + (textured ? "t" : "f");
+    if (cache.has(key)) return cache.get(key);
+    const alb = new Float32Array(N * N), nz = new Float32Array(N * N), nx = new Float32Array(N * N), edge = new Float32Array(N * N);
+    const R = N / 2 - 1;
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const x = (i + 0.5 - N / 2) / R, y = (j + 0.5 - N / 2) / R, rr = x * x + y * y, k = j * N + i;
+      edge[k] = Math.max(0, Math.min(1, (1 - Math.sqrt(rr)) * R + 0.5));
+      if (edge[k] <= 0) continue;
+      const z = Math.sqrt(Math.max(0, 1 - Math.min(1, rr)));
+      nx[k] = x; nz[k] = z;
+      alb[k] = textured ? albedoAt(x, y) : 0.68;
+    }
+    const p = { alb, nz, nx, edge };
+    cache.set(key, p);
+    return p;
+  }
+
+  function drawMoon(canvas, psi, N, textured) {
+    if (canvas.width !== N) { canvas.width = N; canvas.height = N; }
+    const ctx = canvas.getContext("2d");
+    const { alb, nz, nx, edge } = prep(N, textured);
+    const img = ctx.createImageData(N, N), px = img.data;
+    const sx = Math.sin(psi * RAD), sz = -Math.cos(psi * RAD);
+    const k = (1 - Math.cos(psi * RAD)) / 2;
+    const earthshine = 0.05 * (1 - k) + 0.012;
+    for (let p = 0, q = 0; p < N * N; p++, q += 4) {
+      const e = edge[p];
+      if (e <= 0) { px[q + 3] = 0; continue; }
+      const mu = nz[p], mu0 = nx[p] * sx + mu * sz;
+      let b = 0;
+      if (mu0 > -0.04) {
+        const ls = Math.min(1.25, 2 * Math.max(mu0, 0) / (Math.max(mu0, 0) + mu + 1e-4));
+        const soft = Math.min(1, Math.max(0, (mu0 + 0.03) / 0.08));
+        b = ls * soft;
+      }
+      const v = alb[p] * (b * 1.12 + earthshine);
+      px[q] = Math.min(255, 248 * v + 6);
+      px[q + 1] = Math.min(255, 242 * v + 7);
+      px[q + 2] = Math.min(255, 228 * v + 10);
+      px[q + 3] = 255 * e;
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  // ── Состояние и интерфейс ──
+  const $ = id => document.getElementById(id);
+  const base = new Date();
+  let offset = 0, south = false, calMonth = null;
+
+  const fDate = new Intl.DateTimeFormat("ru-RU", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const fShort = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+  const fDM = new Intl.DateTimeFormat("ru-RU", { day: "numeric", month: "short" });
+  const fTime = new Intl.DateTimeFormat("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  const fMonth = new Intl.DateTimeFormat("ru-RU", { month: "long", year: "numeric" });
+  const fInt = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 0 });
+  const f1 = new Intl.NumberFormat("ru-RU", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  try { $("tz").textContent = "Часовой пояс: " + Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
+
+  const selMs = () => base.getTime() + offset * DAY;
+  const moonCanvas = $("moon");
+
+  function moonSize() {
+    const w = moonCanvas.getBoundingClientRect().width || 360;
+    return Math.min(900, Math.round(w * Math.min(2, window.devicePixelRatio || 1)));
+  }
+
+  function hint(psi) {
+    const waxing = psi < 180;
+    const box = $("hint");
+    const nearFull = psi >= 168 && psi < 192, nearNew = psi < 12 || psi >= 348;
+    box.hidden = nearFull || nearNew;
+    if (box.hidden) return;
+    if (south) {
+      $("hintLetter").textContent = waxing ? "С" : "Р";
+      $("hintText").textContent = waxing
+        ? "Южное полушарие: растущая Луна похожа на «С», правило работает наоборот."
+        : "Южное полушарие: стареющая Луна похожа на «Р», правило работает наоборот.";
+    } else {
+      $("hintLetter").textContent = waxing ? "Р" : "С";
+      $("hintText").textContent = waxing
+        ? "Приставьте к Луне палочку, получится «Р». Значит, растёт."
+        : "Луна похожа на «С». Значит, стареет и убывает.";
+    }
+  }
+
+  function render() {
+    const ms = selMs(), s = sky(ms);
+    drawMoon(moonCanvas, s.psi, moonSize(), true);
+    $("moonWrap").style.setProperty("--glow", (0.04 + 0.16 * s.illum).toFixed(3));
+    $("date").textContent = offset === 0 ? "Сегодня, " + fShort.format(ms) : fDate.format(ms);
+    $("phase").textContent = phaseName(s.psi);
+    moonCanvas.setAttribute("aria-label", phaseName(s.psi) + ", освещено " + Math.round(s.illum * 100) + "%");
+    $("illum").innerHTML = Math.round(s.illum * 100) + "<small>%</small>";
+    const lastNew = findPhase(ms, 0, -1);
+    $("age").innerHTML = f1.format((ms - lastNew) / DAY) + "<small>сут</small>";
+    $("dist").innerHTML = fInt.format(s.dist) + "<small>км</small>";
+    $("diam").innerHTML = f1.format(s.diam) + "<small>′</small>";
+    hint(s.psi);
+    renderEvents(ms);
+    const d = new Date(ms);
+    const m = d.getFullYear() * 12 + d.getMonth();
+    if (m !== calMonth) { calMonth = m; renderCal(); } else markCal();
+  }
+
+  function renderEvents(ms) {
+    let q = Math.floor(sky(ms).psi / 90 + 1) % 4, t = ms;
+    const rows = [];
+    for (let i = 0; i < 8; i++) {
+      t = findPhase(t + 3600000, q * 90);
+      const s = sky(t);
+      rows.push(`<tr><td><span class="glyph g${q}"></span>${PHASES[q]}</td><td>${fDM.format(t)}</td><td class="num">${fTime.format(t)}</td><td class="num r hide-s">${fInt.format(s.dist)} км</td></tr>`);
+      q = (q + 1) % 4;
+    }
+    $("events").innerHTML = rows.join("");
+  }
+
+  function renderCal() {
+    const y = Math.floor(calMonth / 12), mo = calMonth % 12;
+    $("mName").textContent = fMonth.format(new Date(y, mo, 1)).replace(" г.", "");
+    const first = new Date(y, mo, 1), days = new Date(y, mo + 1, 0).getDate();
+    const lead = (first.getDay() + 6) % 7;
+    const start = new Date(y, mo, 1).getTime() - DAY, end = new Date(y, mo + 1, 1).getTime();
+    const ev = {};
+    let q = Math.floor(sky(start).psi / 90 + 1) % 4, t = start;
+    for (;;) {
+      t = findPhase(t + 3600000, q * 90);
+      if (t >= end) break;
+      const dt = new Date(t);
+      if (dt.getMonth() === mo) ev[dt.getDate()] = ["новол.", "1-я чет.", "полнол.", "посл. чет."][q];
+      q = (q + 1) % 4;
+    }
+    const cal = $("cal");
+    cal.innerHTML = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"].map(d => `<div class="dow label">${d}</div>`).join("");
+    const n = Math.round(34 * Math.min(2, window.devicePixelRatio || 1));
+    for (let i = 0; i < lead; i++) cal.insertAdjacentHTML("beforeend", '<div class="day out"></div>');
+    for (let d = 1; d <= days; d++) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "day"; b.dataset.d = d;
+      const at = new Date(y, mo, d, base.getHours(), base.getMinutes()).getTime();
+      b.setAttribute("aria-label", fShort.format(at) + ", " + phaseName(sky(at).psi));
+      b.innerHTML = `<span class="d">${d}</span><canvas width="${n}" height="${n}"></canvas><span class="ev">${ev[d] || ""}</span>`;
+      drawMoon(b.querySelector("canvas"), sky(at).psi, n, false);
+      b.addEventListener("click", () => setOffset(dayOffset(new Date(y, mo, d))));
+      cal.appendChild(b);
+    }
+    const trail = (7 - (lead + days) % 7) % 7;
+    for (let i = 0; i < trail; i++) cal.insertAdjacentHTML("beforeend", '<div class="day out"></div>');
+    markCal();
+  }
+
+  function markCal() {
+    const sel = new Date(selMs()), now = new Date(base);
+    const y = Math.floor(calMonth / 12), mo = calMonth % 12;
+    document.querySelectorAll(".cal .day[data-d]").forEach(b => {
+      const d = +b.dataset.d;
+      b.classList.toggle("sel", sel.getFullYear() === y && sel.getMonth() === mo && sel.getDate() === d);
+      b.classList.toggle("today", now.getFullYear() === y && now.getMonth() === mo && now.getDate() === d);
+    });
+  }
+
+  function dayOffset(date) {
+    const a = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+    return Math.round((date - a) / DAY);
+  }
+
+  function renderFulls() {
+    let t = base.getTime();
+    const items = [];
+    for (let i = 0; i < 13; i++) { t = findPhase(t + 3600000, 180); items.push([t, sky(t)]); }
+    const px = 2.4; // пикселей на угловую минуту
+    $("fulls").innerHTML = items.map(([t, s]) => {
+      const sup = s.dist < 360000, micro = s.dist > 405000;
+      const d = (s.diam * px).toFixed(1);
+      return `<div class="full${sup ? " super" : ""}"><div class="disc" style="width:${d}px;height:${d}px"></div><span class="tag">${sup ? "суперлуние" : micro ? "микролуние" : ""}</span><span class="t">${fDM.format(t)}</span><span class="k num">${fInt.format(s.dist)} км</span></div>`;
+    }).join("");
+  }
+
+  function setOffset(v) {
+    offset = Math.max(-366, Math.min(366, v));
+    $("day").value = offset;
+    schedule();
+  }
+  let pending = false;
+  function schedule() { if (pending) return; pending = true; requestAnimationFrame(() => { pending = false; render(); }); }
+
+  $("day").addEventListener("input", e => { offset = +e.target.value; schedule(); });
+  $("prev").addEventListener("click", () => setOffset(offset - 1));
+  $("next").addEventListener("click", () => setOffset(offset + 1));
+  $("today").addEventListener("click", () => setOffset(0));
+  $("mPrev").addEventListener("click", () => { const d = new Date(selMs()); setOffset(dayOffset(new Date(d.getFullYear(), d.getMonth() - 1, Math.min(d.getDate(), 28)))); });
+  $("mNext").addEventListener("click", () => { const d = new Date(selMs()); setOffset(dayOffset(new Date(d.getFullYear(), d.getMonth() + 1, Math.min(d.getDate(), 28)))); });
+  document.querySelectorAll('input[name="hemi"]').forEach(r => r.addEventListener("change", () => {
+    south = $("hemiS").checked;
+    $("app").classList.toggle("south", south);
+    render();
+  }));
+  let rt;
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 150); });
+
+  window.__sky = sky; window.__findPhase = findPhase;
+  renderFulls();
+  render();
+})();
+</script>
+
+</html>
