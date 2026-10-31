@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ARZHEVITIN</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="ARZHEVITIN — кошельки, картхолдеры и обложки из натуральной кожи ручной работы.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Lora:ital,wght@1,500;1,600&family=Montserrat:wght@600;800&display=swap">
+<style>
+/* Layout: тёмная мастерская. Фото изделий на чёрном, строчка-«стежок» как разделитель, текст слева, широкие кадры справа. */
+:root {
+  --ink: #171614;      /* фон, почти чёрный */
+  --umber: #3B342B;    /* тёмно-коричневый, поверхности */
+  --umber-2: #221f1b;  /* между фоном и umber */
+  --moss: #37423D;     /* тёмно-зелёный, второй фон */
+  --oxblood: #754043;  /* бордовый, мелкие акценты */
+  --tan: #9A8873;      /* бежевый, линии и стежки */
+  --linen: #F3EEE6;    /* основной текст */
+  --sand: #D9C7A9;     /* акцентные слова */
+  --muted: #b4a998;    /* второстепенный текст */
+
+  --f-display: "Montserrat", "Arial Black", system-ui, sans-serif;
+  --f-accent: "Lora", Georgia, "Times New Roman", serif;
+  --f-body: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+
+  --gutter: max(16px, env(safe-area-inset-left, 0px));
+  --gutter-r: max(16px, env(safe-area-inset-right, 0px));
+  --wrap: 1200px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--linen);
+  font-family: var(--f-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; display: block; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--sand); outline-offset: 3px; }
+
+.wrap {
+  max-width: var(--wrap);
+  margin-inline: auto;
+  padding-left: var(--gutter);
+  padding-right: var(--gutter-r);
+}
+
+/* Стежок: короткие наклонные штрихи, как седельный шов */
+.stitch {
+  height: 6px;
+  background: repeating-linear-gradient(110deg, transparent 0 7px, var(--tan) 7px 9px, transparent 9px 14px);
+  opacity: .55;
+  border: 0;
+  margin: 0;
+}
+
+.eyebrow {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: .75rem;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: var(--tan);
+  display: flex;
+  align-items: center;
+  gap: .6em;
+}
+.eyebrow::before {
+  content: "";
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--oxblood);
+  flex: none;
+}
+
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h2 {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: .01em;
+}
+em.acc {
+  font-family: var(--f-accent);
+  font-style: italic;
+  font-weight: 500;
+  text-transform: none;
+  color: var(--sand);
+  letter-spacing: 0;
+}
+p { margin: 0; }
+.lead { color: var(--muted); max-width: 34em; font-size: 1.0625rem; }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .6em;
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: .8125rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 1em 1.6em;
+  border: 1px solid var(--tan);
+  color: var(--linen);
+  background: transparent;
+  transition: background .2s, color .2s, border-color .2s;
+}
+.btn:hover { background: var(--linen); color: var(--ink); border-color: var(--linen); }
+.btn--solid { background: var(--oxblood); border-color: var(--oxblood); }
+.btn--solid:hover { background: var(--sand); border-color: var(--sand); color: var(--ink); }
+
+/* ── Шапка ── */
+body::before {
+  content: ""; position: fixed; inset: 0 0 auto;
+  height: env(safe-area-inset-top, 0px); z-index: 10;
+  background: var(--ink);
+}
+.top {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 5;
+  background: color-mix(in srgb, var(--ink) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid color-mix(in srgb, var(--tan) 25%, transparent);
+}
+.top .wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-block: 14px;
+}
+.logo {
+  font-family: var(--f-display);
+  font-weight: 800;
+  letter-spacing: .32em;
+  font-size: 1rem;
+  text-decoration: none;
+}
+.nav { display: flex; gap: 28px; flex-wrap: wrap; }
+.nav a {
+  font-size: .8125rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--muted);
+}
+.nav a:hover { color: var(--linen); }
+
+/* ── Первый экран ── */
+.hero .wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: clamp(28px, 5vw, 72px);
+  align-items: center;
+  padding-block: clamp(40px, 7vw, 88px);
+}
+.hero h1 {
+  font-family: var(--f-display);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: clamp(2rem, 4.6vw, 4rem);
+  line-height: .98;
+  letter-spacing: -.005em;
+}
+.hero h1 em.acc { display: block; font-size: 1.12em; line-height: 1.05; margin-top: .08em; }
+.hero-copy { display: grid; gap: 28px; min-width: 0; }
+.hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.hero-media {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 12px;
+  align-items: end;
+}
+.hero-media figure { margin: 0; overflow: hidden; background: var(--umber-2); }
+.hero-media img { width: 100%; height: 100%; object-fit: cover; }
+.hero-media .f1 { aspect-ratio: 3 / 4.4; }
+.hero-media .f2 { aspect-ratio: 3 / 4; margin-bottom: 18%; }
+
+/* ── Цифры из роликов ── */
+.facts { background: var(--umber-2); }
+.facts .wrap {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-block: 36px;
+  gap: 24px;
+}
+.fact { display: grid; gap: 4px; padding-left: 20px; border-left: 1px solid color-mix(in srgb, var(--tan) 40%, transparent); }
+.fact b {
+  font-family: var(--f-display);
+  font-weight: 800;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.fact b small { font-size: .5em; letter-spacing: .1em; color: var(--sand); margin-left: .3em; }
+.fact span { color: var(--muted); font-size: .9375rem; }
+
+/* ── Каталог ── */
+.section { padding-block: clamp(56px, 9vw, 112px); }
+.section-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 24px 48px;
+  align-items: end;
+  margin-bottom: 40px;
+}
+.section-head .titles { display: grid; gap: 14px; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 40px 24px;
+}
+.item { display: grid; gap: 14px; align-content: start; }
+.item figure {
+  margin: 0;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--umber-2);
+  position: relative;
+}
+.item img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform .6s cubic-bezier(.2,.7,.2,1);
+}
+.item:hover img { transform: scale(1.04); }
+.item .tag {
+  position: absolute; left: 12px; top: 12px;
+  font-size: .6875rem; letter-spacing: .14em; text-transform: uppercase;
+  background: var(--ink); color: var(--sand);
+  padding: .35em .7em;
+}
+.item h3 {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-size: 1.0625rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.item p { color: var(--muted); font-size: .9375rem; }
+.item .row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--tan) 30%, transparent);
+  font-size: .875rem;
+}
+.item .row a { color: var(--sand); text-decoration: none; letter-spacing: .08em; text-transform: uppercase; font-size: .75rem; font-weight: 600; }
+.item .row a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.item .price { color: var(--linen); }
+
+/* ── Патина ── */
+.patina { background: var(--moss); }
+.patina .wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(28px, 5vw, 72px);
+  align-items: center;
+}
+.patina figure { margin: 0; aspect-ratio: 5 / 4; overflow: hidden; }
+.patina figure img { width: 100%; height: 100%; object-fit: cover; }
+.patina .copy { display: grid; gap: 22px; min-width: 0; }
+.timeline { display: grid; gap: 0; margin: 8px 0 0; padding: 0; list-style: none; }
+.timeline li {
+  display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 16px;
+  padding-block: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--linen) 18%, transparent);
+}
+.timeline li:last-child { border-bottom: 1px solid color-mix(in srgb, var(--linen) 18%, transparent); }
+.timeline b {
+  font-family: var(--f-display); font-weight: 600; font-size: .8125rem;
+  letter-spacing: .14em; text-transform: uppercase; color: var(--sand);
+  padding-top: .15em;
+}
+.timeline span { color: color-mix(in srgb, var(--linen) 82%, var(--moss)); }
+
+/* ── Проверки ── */
+.tests {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border-top: 1px solid color-mix(in srgb, var(--tan) 35%, transparent);
+}
+.test {
+  display: grid; gap: 10px; align-content: start;
+  padding: 28px 24px 28px 0;
+  min-width: 0;
+}
+.test + .test { padding-left: 24px; border-left: 1px solid color-mix(in srgb, var(--tan) 35%, transparent); }
+.test .label {
+  font-family: var(--f-display); font-weight: 600; font-size: .75rem;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--tan);
+}
+.test h3 { font-family: var(--f-accent); font-style: italic; font-weight: 500; font-size: 1.5rem; color: var(--sand); line-height: 1.25; }
+.test p { color: var(--muted); font-size: .9375rem; }
+
+/* ── Детали ── */
+.details {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 12px;
+}
+.details figure { margin: 0; overflow: hidden; background: var(--umber-2); position: relative; }
+.details img { width: 100%; height: 100%; object-fit: cover; }
+.details .big { grid-row: span 2; aspect-ratio: 4 / 5; }
+.details .sm { min-height: 0; }
+.details .sm img { position: absolute; inset: 0; }
+.details figcaption {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 28px 14px 12px;
+  font-size: .75rem; letter-spacing: .12em; text-transform: uppercase;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--ink) 85%, transparent));
+}
+
+/* ── Заказ ── */
+.order { background: var(--umber); }
+.order .wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: clamp(28px, 5vw, 72px);
+  align-items: start;
+}
+.order .copy { display: grid; gap: 22px; min-width: 0; }
+.steps { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; counter-reset: s; }
+.steps li {
+  counter-increment: s;
+  display: grid; grid-template-columns: 2.5em minmax(0, 1fr); gap: 12px;
+  padding-block: 16px;
+  border-top: 1px solid color-mix(in srgb, var(--tan) 35%, transparent);
+}
+.steps li::before {
+  content: counter(s);
+  font-family: var(--f-accent); font-style: italic; font-size: 1.5rem; line-height: 1.1;
+  color: var(--sand);
+}
+.steps li b { display: block; font-weight: 600; }
+.steps li span { color: color-mix(in srgb, var(--linen) 75%, var(--umber)); font-size: .9375rem; }
+.contacts {
+  display: grid; gap: 12px;
+  background: var(--ink);
+  padding: 28px;
+}
+.contacts h3 {
+  font-family: var(--f-display); font-weight: 600; font-size: .8125rem;
+  letter-spacing: .18em; text-transform: uppercase; color: var(--tan);
+  margin-bottom: 6px;
+}
+.contacts a.line {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--tan) 30%, transparent);
+  text-decoration: none;
+  font-size: 1.125rem;
+}
+.contacts a.line span { color: var(--muted); font-size: .8125rem; letter-spacing: .08em; text-transform: uppercase; }
+.contacts a.line:hover { color: var(--sand); }
+.contacts .note { color: var(--muted); font-size: .875rem; padding-top: 8px; }
+
+/* ── Подвал ── */
+.foot .wrap {
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px;
+  padding-block: 28px;
+  color: var(--muted); font-size: .8125rem;
+}
+
+/* ── Узкие экраны ── */
+@media (max-width: 900px) {
+  .hero .wrap, .patina .wrap, .order .wrap, .section-head { grid-template-columns: minmax(0, 1fr); }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tests { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .test:nth-child(3) { padding-left: 0; border-left: 0; }
+  .test:nth-child(n+3) { border-top: 1px solid color-mix(in srgb, var(--tan) 35%, transparent); }
+  .nav { display: none; }
+}
+@media (max-width: 560px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .facts .wrap { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .tests { grid-template-columns: minmax(0, 1fr); }
+  .test, .test + .test { padding: 22px 0; border-left: 0; }
+  .test + .test { border-top: 1px solid color-mix(in srgb, var(--tan) 35%, transparent); }
+  .details { grid-template-columns: 1fr 1fr; }
+  .details { grid-template-rows: none; }
+  .details .big { grid-column: span 2; grid-row: auto; }
+  .details .sm { aspect-ratio: 1 / 1; }
+  .contacts { padding: 20px; }
+}
+
+/* Появление первого экрана: из видимого состояния, без ожидания прокрутки */
+@media (prefers-reduced-motion: no-preference) {
+  .hero-copy > *, .hero-media figure { animation: rise .8s cubic-bezier(.2,.7,.2,1) both; }
+  .hero-copy > :nth-child(2) { animation-delay: .08s; }
+  .hero-copy > :nth-child(3) { animation-delay: .16s; }
+  .hero-copy > :nth-child(4) { animation-delay: .24s; }
+  .hero-media .f1 { animation-delay: .12s; }
+  .hero-media .f2 { animation-delay: .3s; }
+  @keyframes rise { from { transform: translateY(14px); } to { transform: none; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .item img { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="logo" href="#">ARZHEVITIN</a>
+    <nav class="nav" aria-label="Разделы">
+      <a href="#catalog">Изделия</a>
+      <a href="#patina">Кожа</a>
+      <a href="#tests">Проверки</a>
+      <a href="#order">Заказ</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <div class="eyebrow">Изделия из натуральной кожи</div>
+      <h1>Изделие приобретает <em class="acc">историю</em></h1>
+      <p class="lead">Кошельки, картхолдеры и обложки ручной работы. Обрабатываем края и прошиваем каждое изделие сами. Натуральная кожа со временем темнеет, покрывается патиной и запоминает, как вы её носите.</p>
+      <div class="hero-actions">
+        <a class="btn btn--solid" href="#catalog">Смотреть изделия</a>
+        <a class="btn" href="#order">Заказать</a>
+      </div>
+    </div>
+    <div class="hero-media">
+      <figure class="f1"><img src="img/wallet-croc.jpg" alt="Чёрный кошелёк с тиснением под крокодила в руке в перчатке" fetchpriority="high"></figure>
+      <figure class="f2"><img src="img/notebook-red.jpg" alt="Красная кожаная обложка для ежедневника"></figure>
+    </div>
+  </div>
+</section>
+
+<section class="facts" aria-label="Коротко о мастерской">
+  <div class="wrap">
+    <div class="fact"><b>6<small>ЧАСОВ</small></b><span>уходит на один кошелёк: раскрой, прошивка, обработка краёв</span></div>
+    <div class="fact"><b>1+<small>ГОД</small></b><span>каждый день носим наш картхолдер и показываем, как он изменился</span></div>
+    <div class="fact"><b>1<small>ЧАС</small></b><span>после капли воды. Пятна на коже не осталось</span></div>
+  </div>
+</section>
+
+<hr class="stitch">
+
+<section class="section" id="catalog">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="titles">
+        <div class="eyebrow">Изделия</div>
+        <h2>Вещи на <em class="acc">каждый день</em></h2>
+      </div>
+      <p class="lead">Цвет, кожу и детали обсуждаем перед работой. Напишите, какое изделие нравится, и мы расскажем о наличии и сроках.</p>
+    </div>
+
+    <div class="grid">
+      <article class="item">
+        <figure><img src="img/wallet-brown.jpg" alt="Коричневый кошелёк из зернистой кожи" loading="lazy" style="object-position: 50% 40%"><span class="tag">6 часов работы</span></figure>
+        <h3>Кошелёк бифолд</h3>
+        <p>Тёмно-коричневая зернистая кожа, отделения для карт и купюр, края обработаны вручную.</p>
+        <div class="row"><span class="price">Цена по запросу</span><a href="#order">Заказать</a></div>
+      </article>
+
+      <article class="item">
+        <figure><img src="img/wallet-croc-open.jpg" alt="Открытый чёрный кошелёк с тиснением под крокодила" loading="lazy" style="object-position: 50% 45%"></figure>
+        <h3>Кошелёк «Крокодил»</h3>
+        <p>Чёрная кожа с тиснением под крокодила. Внутри карманы для карт и отделение для купюр.</p>
+        <div class="row"><span class="price">Цена по запросу</span><a href="#order">Заказать</a></div>
+      </article>
+
+      <article class="item">
+        <figure><img src="img/cardholder-brown.jpg" alt="Коричневый картхолдер с фигурными карманами" loading="lazy" style="object-position: 62% 50%"><span class="tag">С патиной</span></figure>
+        <h3>Картхолдер коричневый</h3>
+        <p>Фигурные карманы и ручная прошивка. С каждым месяцем цвет становится глубже.</p>
+        <div class="row"><span class="price">Цена по запросу</span><a href="#order">Заказать</a></div>
+      </article>
+
+      <article class="item">
+        <figure><img src="img/cardholder-croc.jpg" alt="Чёрный картхолдер с тиснением под крокодила" loading="lazy" style="object-position: 55% 50%"></figure>
+        <h3>Картхолдер «Крокодил»</h3>
+        <p>Чёрный, с тиснением под крокодила. Тонкий, помещается в карман рубашки.</p>
+        <div class="row"><span class="price">Цена по запросу</span><a href="#order">Заказать</a></div>
+      </article>
+
+      <article class="item">
+        <figure><img src="img/passport-blue.jpg" alt="Синяя кожаная обложка на паспорт" loading="lazy" style="object-position: 50% 35%"></figure>
+        <h3>Обложка на паспорт</h3>
+        <p>Синяя кожа. Следы использования убираются небольшим уходом, как в нашем ролике.</p>
+        <div class="row"><span class="price">Цена по запросу</span><a href="#order">Заказать</a></div>
+      </article>
+
+      <article class="item">
+        <figure><img src="img/notebook-red-open.jpg" alt="Красная обложка для ежедневника, открытая, с блоком кремовой бумаги" loading="lazy" style="object-position: 50% 45%"></figure>
+        <h3>Обложка для ежедневника</h3>
+        <p>Красная кожа с яркой фактурой, петля для ручки, сменный блок.</p>
+        <div class="row"><span class="price">Цена по запросу</span><a href="#order">Заказать</a></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section class="section patina" id="patina">
+  <div class="wrap">
+    <figure><img src="img/cardholder-brown.jpg" alt="Картхолдер после года ежедневной носки" loading="lazy"></figure>
+    <div class="copy">
+      <div class="eyebrow">Натуральная кожа</div>
+      <h2>Со временем <em class="acc">только лучше</em></h2>
+      <p class="lead" style="color: color-mix(in srgb, var(--linen) 82%, var(--moss))">Этот картхолдер мы носим каждый день больше года. Вот что происходит с натуральной кожей.</p>
+      <ul class="timeline">
+        <li><b>Новый</b><span>Ровный цвет, плотная кожа, чёткие края.</span></li>
+        <li><b>Месяцы</b><span>Кожа покрывается патиной, цвет становится глубже.</span></li>
+        <li><b>Год и больше</b><span>Появляются небольшие следы использования, и изделие приобретает историю.</span></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<hr class="stitch">
+
+<section class="section" id="tests">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="titles">
+        <div class="eyebrow">Проверяем на камеру</div>
+        <h2>Что выдерживает <em class="acc">наша кожа</em></h2>
+      </div>
+      <p class="lead">Не обещаем на словах. Царапаем, мочим, сгибаем и снимаем, что получилось.</p>
+    </div>
+    <div class="tests">
+      <div class="test"><span class="label">Удар</span><h3>Рядом с кожей конкурента</h3><p>Ударили по обоим образцам. Кожа конкурента деформировалась, на ней осталась вмятина.</p></div>
+      <div class="test"><span class="label">Вода</span><h3>Пятна нет</h3><p>Капнули воду на кожу и подождали. Через час от капли не осталось следа.</p></div>
+      <div class="test"><span class="label">Складки</span><h3>Загиб оставляет след</h3><p>Хорошая кожа помнит, как её носят. Складки делают вещь вашей.</p></div>
+      <div class="test"><span class="label">Уход</span><h3>Восстановление</h3><p>После небольшого ухода мелкие следы на обложке стали гораздо менее заметными.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" style="padding-top: 0" aria-label="Детали">
+  <div class="wrap">
+    <div class="details">
+      <figure class="big"><img src="img/detail-grain.jpg" alt="Зернистая фактура коричневой кожи крупным планом" loading="lazy"><figcaption>Зернистая кожа</figcaption></figure>
+      <figure class="sm"><img src="img/detail-red.jpg" alt="Фактура красной кожи и строчка по краю" loading="lazy"><figcaption>Строчка по краю</figcaption></figure>
+      <figure class="sm"><img src="img/detail-fold.jpg" alt="Сгиб кошелька, видна обработка края" loading="lazy" style="object-position: 50% 60%"><figcaption>Обработка краёв</figcaption></figure>
+      <figure class="sm"><img src="img/wallet-cash.jpg" alt="Открытый кошелёк с купюрами" style="object-position: 40% 45%"><figcaption>Отделение для купюр</figcaption></figure>
+      <figure class="sm"><img src="img/wallet-croc.jpg" alt="Тиснение под крокодила крупным планом" loading="lazy" style="object-position: 50% 70%"><figcaption>Тиснение</figcaption></figure>
+    </div>
+  </div>
+</section>
+
+<section class="section order" id="order">
+  <div class="wrap">
+    <div class="copy">
+      <div class="eyebrow">Заказ</div>
+      <h2>Сделаем <em class="acc">для вас</em></h2>
+      <ol class="steps">
+        <li><div><b>Напишите нам</b><span>Пришлите название изделия или фото того, что хотите.</span></div></li>
+        <li><div><b>Обсудим детали</b><span>Цвет, кожа, нитки, сроки и цена.</span></div></li>
+        <li><div><b>Сошьём и отправим</b><span>Покажем готовое изделие перед отправкой.</span></div></li>
+      </ol>
+    </div>
+    <aside class="contacts" aria-label="Контакты">
+      <h3>Написать</h3>
+      <!-- ЗАМЕНИТЬ: ссылки и контакты бренда -->
+      <a class="line" href="https://t.me/" target="_blank" rel="noopener">Telegram <span>Написать</span></a>
+      <a class="line" href="https://instagram.com/" target="_blank" rel="noopener">Instagram <span>Смотреть</span></a>
+      <a class="line" href="https://arzhevitin.ru" target="_blank" rel="noopener">arzhevitin.ru <span>Сайт</span></a>
+      <p class="note">Отвечаем лично. Расскажем о наличии и сроках изготовления.</p>
+    </aside>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <span>ARZHEVITIN · изделия из натуральной кожи</span>
+    <span>© 2026</span>
+  </div>
+</footer>
+
+</body>
+</html>
